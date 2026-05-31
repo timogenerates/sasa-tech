@@ -63,25 +63,33 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  /* SASA dark Solo-Leveling inspired theme */
+  --background: oklch(0.14 0.03 265);
+  --foreground: oklch(0.96 0.02 230);
+  --card: oklch(0.18 0.035 265);
+  --card-foreground: oklch(0.96 0.02 230);
+  --popover: oklch(0.18 0.035 265);
+  --popover-foreground: oklch(0.96 0.02 230);
+  --primary: oklch(0.78 0.18 220);
+  --primary-foreground: oklch(0.12 0.04 265);
+  --secondary: oklch(0.26 0.05 265);
+  --secondary-foreground: oklch(0.96 0.02 230);
+  --muted: oklch(0.22 0.04 265);
+  --muted-foreground: oklch(0.72 0.04 240);
+  --accent: oklch(0.68 0.22 300);
+  --accent-foreground: oklch(0.98 0.01 230);
+  --destructive: oklch(0.65 0.24 25);
+  --destructive-foreground: oklch(0.98 0.01 230);
+  --border: oklch(0.32 0.07 250);
+  --input: oklch(0.24 0.05 265);
+  --ring: oklch(0.78 0.18 220);
+  --sasa-cyan: oklch(0.82 0.18 210);
+  --sasa-violet: oklch(0.68 0.22 300);
+  --sasa-gold: oklch(0.85 0.16 90);
+  --gradient-frame: linear-gradient(135deg, oklch(0.82 0.18 210 / 0.9), oklch(0.68 0.22 300 / 0.9));
+  --gradient-panel: linear-gradient(180deg, oklch(0.2 0.04 265 / 0.92), oklch(0.14 0.04 265 / 0.95));
+  --glow-cyan: 0 0 30px oklch(0.82 0.18 210 / 0.55), 0 0 60px oklch(0.82 0.18 210 / 0.25);
+  --glow-violet: 0 0 30px oklch(0.68 0.22 300 / 0.5);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -140,5 +148,51 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    background-image:
+      radial-gradient(ellipse at top, oklch(0.22 0.08 260 / 0.6), transparent 60%),
+      radial-gradient(ellipse at bottom right, oklch(0.2 0.1 300 / 0.4), transparent 50%);
+    background-attachment: fixed;
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+}
+
+@layer utilities {
+  .sasa-panel {
+    background: var(--gradient-panel);
+    border: 1px solid oklch(0.82 0.18 210 / 0.35);
+    box-shadow: var(--glow-cyan), inset 0 1px 0 oklch(1 0 0 / 0.05);
+    backdrop-filter: blur(10px);
+  }
+  .sasa-frame-corner::before,
+  .sasa-frame-corner::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--sasa-cyan);
+  }
+  .sasa-frame-corner::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+  .sasa-frame-corner::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+  .sasa-text-glow { text-shadow: 0 0 10px oklch(0.82 0.18 210 / 0.7); }
+  @keyframes sasa-float {
+    0%, 100% { transform: translateY(0) rotate(-1deg); }
+    50% { transform: translateY(-10px) rotate(1deg); }
+  }
+  @keyframes sasa-pulse {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
+  }
+  .sasa-float { animation: sasa-float 4s ease-in-out infinite; }
+  .sasa-pulse-glow { animation: sasa-pulse 2.5s ease-in-out infinite; }
+  @keyframes scanline {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100%); }
+  }
+  .sasa-scanline::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent, oklch(0.82 0.18 210 / 0.08), transparent);
+    animation: scanline 3s linear infinite;
+    pointer-events: none;
   }
 }
