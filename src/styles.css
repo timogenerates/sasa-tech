@@ -195,4 +195,20 @@
     animation: scanline 3s linear infinite;
     pointer-events: none;
   }
+  .sasa-markdown p { margin: 0.4rem 0; }
+  .sasa-markdown strong { color: var(--sasa-cyan); }
+  .sasa-markdown em { color: var(--sasa-violet); font-style: italic; }
+  .sasa-markdown ul, .sasa-markdown ol { margin: 0.4rem 0 0.4rem 1.1rem; }
+  .sasa-markdown li { margin: 0.15rem 0; }
+  .sasa-markdown code {
+    background: oklch(0.22 0.04 265);
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.85em;
+  }
+  .sasa-markdown h1, .sasa-markdown h2, .sasa-markdown h3 {
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    margin: 0.6rem 0 0.3rem;
+  }
 }

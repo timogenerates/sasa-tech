@@ -231,7 +231,7 @@ function MessageBubble({ role, content }: { role: "user" | "assistant"; content:
             s.kind === "status" ? (
               <StatusWindow key={i} data={s.status} />
             ) : (
-              <div key={i} className="prose prose-invert prose-sm max-w-none prose-p:my-2 prose-headings:my-2">
+              <div key={i} className="sasa-markdown text-sm leading-relaxed">
                 <ReactMarkdown>{s.text}</ReactMarkdown>
               </div>
             ),
