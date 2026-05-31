@@ -77,14 +77,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "Self-Analysis Systems AI" },
+      { name: "description", content: "SASA acts like a status window for reflecting back a user's real-life attributes. It gamifies people's lives, enabling them to achieve their goals in an interes" },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "Self-Analysis Systems AI" },
+      { property: "og:description", content: "SASA acts like a status window for reflecting back a user's real-life attributes. It gamifies people's lives, enabling them to achieve their goals in an interes" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Self-Analysis Systems AI" },
+      { name: "twitter:description", content: "SASA acts like a status window for reflecting back a user's real-life attributes. It gamifies people's lives, enabling them to achieve their goals in an interes" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/yslTYVLKMEWj3t3kys8Uys9gKWD2/social-images/social-1780207327027-Picsart_26-05-30_18-39-29-746.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/yslTYVLKMEWj3t3kys8Uys9gKWD2/social-images/social-1780207327027-Picsart_26-05-30_18-39-29-746.webp" },
     ],
     links: [
       {
