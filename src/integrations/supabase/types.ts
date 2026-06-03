@@ -14,7 +14,163 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chats: {
+        Row: {
+          archived: boolean
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      creator_emails: {
+        Row: {
+          email: string
+        }
+        Insert: {
+          email: string
+        }
+        Update: {
+          email?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          chat_id: string
+          content: string
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          chat_id: string
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          chat_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          daily_prompts_used: number
+          daily_reset_at: string
+          display_name: string | null
+          email: string | null
+          flagged: boolean
+          flagged_at: string | null
+          id: string
+          prompts_remaining: number
+          tier: Database["public"]["Enums"]["user_tier"]
+          tier_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          daily_prompts_used?: number
+          daily_reset_at?: string
+          display_name?: string | null
+          email?: string | null
+          flagged?: boolean
+          flagged_at?: string | null
+          id: string
+          prompts_remaining?: number
+          tier?: Database["public"]["Enums"]["user_tier"]
+          tier_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          daily_prompts_used?: number
+          daily_reset_at?: string
+          display_name?: string | null
+          email?: string | null
+          flagged?: boolean
+          flagged_at?: string | null
+          id?: string
+          prompts_remaining?: number
+          tier?: Database["public"]["Enums"]["user_tier"]
+          tier_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      status_snapshots: {
+        Row: {
+          chat_id: string | null
+          created_at: string
+          data: Json
+          id: string
+          overall: number | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          chat_id?: string | null
+          created_at?: string
+          data: Json
+          id?: string
+          overall?: number | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          chat_id?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          overall?: number | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "status_snapshots_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +179,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      user_tier: "free" | "monthly" | "prompts"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +306,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_tier: ["free", "monthly", "prompts"],
+    },
   },
 } as const
