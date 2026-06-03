@@ -152,7 +152,15 @@
       radial-gradient(ellipse at top, oklch(0.22 0.08 260 / 0.6), transparent 60%),
       radial-gradient(ellipse at bottom right, oklch(0.2 0.1 300 / 0.4), transparent 50%);
     background-attachment: fixed;
-    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-family: 'Rajdhani', 'Inter', system-ui, sans-serif;
+    letter-spacing: 0.01em;
+  }
+  h1, h2, h3, .sasa-display {
+    font-family: 'Orbitron', 'Rajdhani', sans-serif;
+    letter-spacing: 0.08em;
+  }
+  .sasa-mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
   }
 }
 
@@ -210,5 +218,35 @@
     font-weight: 700;
     letter-spacing: 0.05em;
     margin: 0.6rem 0 0.3rem;
+  }
+
+  /* SASA avatar idle animations */
+  @keyframes sasa-breathe {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-2px) scale(1.012); }
+  }
+  @keyframes sasa-sway {
+    0%, 100% { transform: rotate(-1.2deg); }
+    50% { transform: rotate(1.2deg); }
+  }
+  @keyframes sasa-blink {
+    0%, 92%, 100% { opacity: 0; transform: scaleY(0); }
+    94%, 98% { opacity: 1; transform: scaleY(1); }
+  }
+  .sasa-breathe { animation: sasa-breathe 4.5s ease-in-out infinite; }
+  .sasa-sway { animation: sasa-sway 8s ease-in-out infinite; }
+  .sasa-blink { animation: sasa-blink 5s ease-in-out infinite; transform-origin: center; }
+
+  /* Neon prompt-counter chip */
+  @keyframes sasa-neon-flash {
+    0% { box-shadow: 0 0 4px var(--sasa-cyan), 0 0 14px var(--sasa-cyan); }
+    100% { box-shadow: 0 0 2px var(--sasa-cyan); }
+  }
+  .sasa-neon-flash { animation: sasa-neon-flash 1.2s ease-out; }
+  .sasa-neon-chip {
+    border: 1px solid oklch(0.82 0.18 210 / 0.6);
+    color: var(--sasa-cyan);
+    background: oklch(0.14 0.04 265 / 0.9);
+    text-shadow: 0 0 8px var(--sasa-cyan);
   }
 }
