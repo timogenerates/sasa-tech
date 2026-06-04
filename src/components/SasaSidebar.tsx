@@ -1,17 +1,24 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { MessageSquarePlus, History, BarChart3, UserCircle2, Settings, LogOut, Crown, Sparkles, Link2 } from "lucide-react";
+import { MessageSquarePlus, BarChart3, UserCircle2, Settings, LogOut, Crown, Sparkles, Link2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { ChatHistoryList } from "./ChatHistoryList";
 
 type Props = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onNewChat: () => void;
   onRequestAuth: (mode: "signup" | "login") => void;
+  activeChatId?: string | null;
+  onSelectChat?: (id: string) => void;
+  chatsRefreshKey?: number;
 };
 
-export function SasaSidebar({ open, onOpenChange, onNewChat, onRequestAuth }: Props) {
+export function SasaSidebar({
+  open, onOpenChange, onNewChat, onRequestAuth,
+  activeChatId = null, onSelectChat, chatsRefreshKey = 0,
+}: Props) {
   const { user, profile, signOut } = useAuth();
 
   const item = (icon: React.ReactNode, label: string, onClick: () => void, disabled = false) => (
@@ -44,22 +51,39 @@ export function SasaSidebar({ open, onOpenChange, onNewChat, onRequestAuth }: Pr
           )}
         </SheetHeader>
 
-        <div className="p-2 space-y-0.5">
-          {item(<MessageSquarePlus size={16} />, "New Chat", () => { onNewChat(); onOpenChange(false); })}
-          {item(<History size={16} />, "Chat History", () => user ? toast.info("Chat history page — coming next phase") : guestOnly(), !user)}
-          {item(<BarChart3 size={16} />, "Status Hub", () => user ? toast.info("Status Hub — coming next phase") : guestOnly(), !user)}
-          {item(<Sparkles size={16} />, "Character Design", () => toast.info("3D avatar customization — paid tier feature, coming soon"))}
-          {item(<Crown size={16} />, "Upgrade Plan", () => {
-            const email = user?.email ?? "";
-            toast(
-              `Patreon: patreon.com/sasaupgrades · use email "${email || "your SASA email"}" or your tier won't sync.`,
-              { duration: 6000 },
-            );
-            window.open("https://www.patreon.com/sasaupgrades", "_blank", "noopener");
-          })}
-          {item(<UserCircle2 size={16} />, "User Profile", () => user ? toast.info("Profile editor — coming next phase") : guestOnly(), !user)}
-          {item(<Settings size={16} />, "Settings", () => toast.info("Settings panel — coming next phase"))}
-          {item(<Link2 size={16} />, "Synchronization", () => user ? toast.info("Account sync — coming next phase") : guestOnly(), !user)}
+        <div className="flex flex-col h-[calc(100%-140px)] overflow-hidden">
+          <div className="p-2 space-y-0.5 shrink-0">
+            {item(<MessageSquarePlus size={16} />, "New Chat", () => { onNewChat(); onOpenChange(false); })}
+          </div>
+
+          {user && (
+            <div className="flex-1 overflow-y-auto px-2 pb-2">
+              <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground">
+                Chat History
+              </div>
+              <ChatHistoryList
+                activeChatId={activeChatId}
+                refreshKey={chatsRefreshKey}
+                onSelect={(id) => { onSelectChat?.(id); onOpenChange(false); }}
+              />
+            </div>
+          )}
+
+          <div className="p-2 space-y-0.5 border-t shrink-0" style={{ borderColor: "oklch(0.32 0.07 250 / 0.3)" }}>
+            {item(<BarChart3 size={16} />, "Status Hub", () => user ? toast.info("Status Hub — coming next phase") : guestOnly(), !user)}
+            {item(<Sparkles size={16} />, "Character Design", () => toast.info("3D avatar customization — paid tier feature, coming soon"))}
+            {item(<Crown size={16} />, "Upgrade Plan", () => {
+              const email = user?.email ?? "";
+              toast(
+                `Patreon: patreon.com/sasaupgrades · use email "${email || "your SASA email"}" or your tier won't sync.`,
+                { duration: 6000 },
+              );
+              window.open("https://www.patreon.com/sasaupgrades", "_blank", "noopener");
+            })}
+            {item(<UserCircle2 size={16} />, "User Profile", () => user ? toast.info("Profile editor — coming next phase") : guestOnly(), !user)}
+            {item(<Settings size={16} />, "Settings", () => toast.info("Settings panel — coming next phase"))}
+            {item(<Link2 size={16} />, "Synchronization", () => user ? toast.info("Account sync — coming next phase") : guestOnly(), !user)}
+          </div>
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 p-2 border-t" style={{ borderColor: "oklch(0.32 0.07 250 / 0.4)" }}>
