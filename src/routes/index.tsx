@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChatPanel } from "@/components/ChatPanel";
 import { SasaAvatar } from "@/components/SasaAvatar";
 import { Toaster } from "@/components/ui/sonner";
@@ -30,6 +30,12 @@ function Index() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [chatsRefreshKey, setChatsRefreshKey] = useState(0);
   const { user } = useAuth();
+
+  useEffect(() => {
+    // When auth state flips, drop the active chat reference
+    setActiveChatId(null);
+    setChatsRefreshKey((k) => k + 1);
+  }, [user?.id]);
 
   return (
     <div className="min-h-screen flex flex-col">
