@@ -13,6 +13,7 @@ import type { SasaStatus } from "@/lib/sasa-prompt";
 import { useAuth } from "@/hooks/useAuth";
 import { consumePromptCredit } from "@/lib/usage.functions";
 import { getGuestUsed, incGuestUsed } from "./PromptLimitHud";
+import { addMessage, createChat, getChatMessages } from "@/lib/chats.functions";
 
 const GUEST_LIMIT = 10;
 
@@ -30,18 +31,30 @@ const GREETING: Msg = {
 type ChatPanelProps = {
   onPromptConsumed?: () => void;
   onRequestAuth?: (mode: "signup" | "login") => void;
+  activeChatId?: string | null;
+  onActiveChatChange?: (id: string | null) => void;
+  onChatsMutated?: () => void;
 };
 
-export function ChatPanel({ onPromptConsumed, onRequestAuth }: ChatPanelProps = {}) {
+export function ChatPanel({
+  onPromptConsumed,
+  onRequestAuth,
+  activeChatId = null,
+  onActiveChatChange,
+  onChatsMutated,
+}: ChatPanelProps = {}) {
   const { user, refreshProfile } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [status, setStatus] = useState<SasaStatus | null>(null);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Guests use localStorage only. Authenticated users load from DB per chat.
   useEffect(() => {
+    if (user) return;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -53,14 +66,45 @@ export function ChatPanel({ onPromptConsumed, onRequestAuth }: ChatPanelProps = 
     } catch {
       setMessages([GREETING]);
     }
-  }, []);
+  }, [user]);
+
+  // Load messages for the active chat when logged in
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    if (!activeChatId) {
+      setMessages([GREETING]);
+      setStatus(null);
+      return;
+    }
+    setLoadingHistory(true);
+    getChatMessages({ data: { chatId: activeChatId } })
+      .then((rows) => {
+        if (cancelled) return;
+        const loaded: Msg[] = rows.map((r) => ({ role: r.role, content: r.content }));
+        setMessages(loaded.length ? loaded : [GREETING]);
+        const latest = [...loaded].reverse().find((m) => m.role === "assistant");
+        if (latest) {
+          const s = extractLatestStatus(latest.content);
+          if (s) setStatus(s);
+        }
+      })
+      .catch((e) => {
+        console.error(e);
+        toast.error("Couldn't load chat history");
+      })
+      .finally(() => !cancelled && setLoadingHistory(false));
+    return () => { cancelled = true; };
+  }, [user, activeChatId]);
 
   useEffect(() => {
+    if (user) return;
     if (messages.length) localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-  }, [messages]);
+  }, [messages, user]);
   useEffect(() => {
+    if (user) return;
     if (status) localStorage.setItem(STATUS_KEY, JSON.stringify(status));
-  }, [status]);
+  }, [status, user]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -101,6 +145,24 @@ export function ChatPanel({ onPromptConsumed, onRequestAuth }: ChatPanelProps = 
 
     if (!user) incGuestUsed();
     onPromptConsumed?.();
+
+    // Ensure a chat row exists for logged-in users; persist the user message
+    let chatId = activeChatId;
+    if (user) {
+      try {
+        if (!chatId) {
+          const title = trimmed.slice(0, 60);
+          const created = await createChat({ data: { title } });
+          chatId = created.id;
+          onActiveChatChange?.(chatId);
+          onChatsMutated?.();
+        }
+        await addMessage({ data: { chatId: chatId!, role: "user", content: trimmed } });
+      } catch (e) {
+        console.error(e);
+        toast.error("Couldn't save your message");
+      }
+    }
 
     try {
       const res = await fetch("/api/chat", {
@@ -154,6 +216,15 @@ export function ChatPanel({ onPromptConsumed, onRequestAuth }: ChatPanelProps = 
 
       const latest = extractLatestStatus(assistant);
       if (latest) setStatus(latest);
+
+      if (user && chatId && assistant.trim()) {
+        try {
+          await addMessage({ data: { chatId, role: "assistant", content: assistant } });
+          onChatsMutated?.();
+        } catch (e) {
+          console.error("Failed to persist assistant message", e);
+        }
+      }
     } catch (e) {
       console.error(e);
       toast.error("Connection to SASA failed");
@@ -169,11 +240,17 @@ export function ChatPanel({ onPromptConsumed, onRequestAuth }: ChatPanelProps = 
   }
 
   function reset() {
-    if (!confirm("Clear chat + status with SASA?")) return;
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(STATUS_KEY);
-    setMessages([GREETING]);
-    setStatus(null);
+    if (user) {
+      onActiveChatChange?.(null);
+      setMessages([GREETING]);
+      setStatus(null);
+    } else {
+      if (!confirm("Clear chat + status with SASA?")) return;
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STATUS_KEY);
+      setMessages([GREETING]);
+      setStatus(null);
+    }
   }
 
   return (
@@ -199,6 +276,9 @@ export function ChatPanel({ onPromptConsumed, onRequestAuth }: ChatPanelProps = 
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {loadingHistory && (
+          <div className="text-xs text-muted-foreground">Loading chat…</div>
+        )}
         <AnimatePresence initial={false}>
           {messages.map((m, i) => (
             <MessageBubble key={i} role={m.role} content={m.content} />
