@@ -10,6 +10,11 @@ import { StatusWindow } from "./StatusWindow";
 import { DailyLogForm, type DailyLog } from "./DailyLogForm";
 import { parseSasaMessage, extractLatestStatus } from "@/lib/sasa-parser";
 import type { SasaStatus } from "@/lib/sasa-prompt";
+import { useAuth } from "@/hooks/useAuth";
+import { consumePromptCredit } from "@/lib/usage.functions";
+import { getGuestUsed, incGuestUsed } from "./PromptLimitHud";
+
+const GUEST_LIMIT = 10;
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -22,7 +27,13 @@ const GREETING: Msg = {
     "Hello, master~ ✨ SASA online and *delighted* to see you.\n\nI'm your Self-Analysis Systems AI — a floating status window for your real life. Talk to me about your day, your goals, what's stressing you, what's going well. The more you give me, the sharper your stats get.\n\nWant to start with a quick **daily log**, or just chat? I'll be reading between the lines either way. 😉",
 };
 
-export function ChatPanel() {
+type ChatPanelProps = {
+  onPromptConsumed?: () => void;
+  onRequestAuth?: (mode: "signup" | "login") => void;
+};
+
+export function ChatPanel({ onPromptConsumed, onRequestAuth }: ChatPanelProps = {}) {
+  const { user, refreshProfile } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [status, setStatus] = useState<SasaStatus | null>(null);
   const [input, setInput] = useState("");
@@ -58,11 +69,38 @@ export function ChatPanel() {
   async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || streaming) return;
+
+    // Enforce prompt limits before contacting the model
+    if (!user) {
+      if (getGuestUsed() >= GUEST_LIMIT) {
+        toast.error("Guest limit reached (10 prompts). Sign up for 25 free per day~");
+        onRequestAuth?.("signup");
+        return;
+      }
+    } else {
+      try {
+        const r = await consumePromptCredit();
+        if (!r.ok) {
+          if (r.reason === "daily_exhausted") toast.error("Daily free limit reached. Upgrade for unlimited prompts.");
+          else if (r.reason === "prompts_exhausted") toast.error("Prompt pack empty. Top up to keep chatting.");
+          return;
+        }
+        await refreshProfile();
+      } catch (e) {
+        console.error(e);
+        toast.error("Couldn't verify your prompt credits");
+        return;
+      }
+    }
+
     const userMsg: Msg = { role: "user", content: trimmed };
     const next = [...messages, userMsg];
     setMessages(next);
     setInput("");
     setStreaming(true);
+
+    if (!user) incGuestUsed();
+    onPromptConsumed?.();
 
     try {
       const res = await fetch("/api/chat", {
