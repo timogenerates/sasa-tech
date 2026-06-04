@@ -13,7 +13,7 @@ import type { SasaStatus } from "@/lib/sasa-prompt";
 import { useAuth } from "@/hooks/useAuth";
 import { consumePromptCredit } from "@/lib/usage.functions";
 import { getGuestUsed, incGuestUsed } from "./PromptLimitHud";
-import { addMessage, createChat, getChatMessages, renameChat } from "@/lib/chats.functions";
+import { addMessage, createChat, getChatMessages } from "@/lib/chats.functions";
 
 const GUEST_LIMIT = 10;
 
