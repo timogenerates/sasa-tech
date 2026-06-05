@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import type { SasaStatus } from "@/lib/sasa-prompt";
+import type { Json } from "@/integrations/supabase/types";
 
 export type SnapshotRow = {
   id: string;
@@ -30,7 +31,7 @@ export const saveStatusSnapshot = createServerFn({ method: "POST" })
       .insert({
         user_id: userId,
         chat_id: data.chatId ?? null,
-        data: s as unknown as Record<string, unknown>,
+        data: s as unknown as Json,
         overall: typeof s.overall === "number" ? s.overall : null,
         status: s.status ?? null,
       })
