@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { consumePromptCredit } from "@/lib/usage.functions";
 import { getGuestUsed, incGuestUsed } from "./PromptLimitHud";
 import { addMessage, createChat, getChatMessages } from "@/lib/chats.functions";
+import { saveStatusSnapshot } from "@/lib/status.functions";
 
 const GUEST_LIMIT = 10;
 
@@ -34,6 +35,7 @@ type ChatPanelProps = {
   activeChatId?: string | null;
   onActiveChatChange?: (id: string | null) => void;
   onChatsMutated?: () => void;
+  onStatusSaved?: () => void;
 };
 
 export function ChatPanel({
@@ -42,6 +44,7 @@ export function ChatPanel({
   activeChatId = null,
   onActiveChatChange,
   onChatsMutated,
+  onStatusSaved,
 }: ChatPanelProps = {}) {
   const { user, refreshProfile } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -223,6 +226,15 @@ export function ChatPanel({
           onChatsMutated?.();
         } catch (e) {
           console.error("Failed to persist assistant message", e);
+        }
+      }
+
+      if (user && latest) {
+        try {
+          await saveStatusSnapshot({ data: { chatId: chatId ?? null, data: latest } });
+          onStatusSaved?.();
+        } catch (e) {
+          console.error("Failed to save status snapshot", e);
         }
       }
     } catch (e) {

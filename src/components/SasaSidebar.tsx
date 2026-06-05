@@ -13,11 +13,13 @@ type Props = {
   activeChatId?: string | null;
   onSelectChat?: (id: string) => void;
   chatsRefreshKey?: number;
+  onOpenStatusHub?: () => void;
 };
 
 export function SasaSidebar({
   open, onOpenChange, onNewChat, onRequestAuth,
   activeChatId = null, onSelectChat, chatsRefreshKey = 0,
+  onOpenStatusHub,
 }: Props) {
   const { user, profile, signOut } = useAuth();
 
@@ -70,7 +72,11 @@ export function SasaSidebar({
           )}
 
           <div className="p-2 space-y-0.5 border-t shrink-0" style={{ borderColor: "oklch(0.32 0.07 250 / 0.3)" }}>
-            {item(<BarChart3 size={16} />, "Status Hub", () => user ? toast.info("Status Hub — coming next phase") : guestOnly(), !user)}
+            {item(<BarChart3 size={16} />, "Status Hub", () => {
+              if (!user) return guestOnly();
+              onOpenStatusHub?.();
+              onOpenChange(false);
+            }, !user)}
             {item(<Sparkles size={16} />, "Character Design", () => toast.info("3D avatar customization — paid tier feature, coming soon"))}
             {item(<Crown size={16} />, "Upgrade Plan", () => {
               const email = user?.email ?? "";
