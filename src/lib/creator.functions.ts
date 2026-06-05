@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Database } from "@/integrations/supabase/types";
 import { z } from "zod";
 
 export type CreatorUserRow = {
@@ -72,7 +73,7 @@ export const setUserTier = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     await assertCreator((context.claims as { email?: string }).email);
-    const patch: Record<string, unknown> = {
+    const patch: Database["public"]["Tables"]["profiles"]["Update"] = {
       tier: data.tier,
       updated_at: new Date().toISOString(),
     };
