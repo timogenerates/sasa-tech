@@ -8,6 +8,7 @@ import { Menu } from "lucide-react";
 import { SasaSidebar } from "@/components/SasaSidebar";
 import { AuthDialog } from "@/components/AuthDialog";
 import { PromptLimitHud } from "@/components/PromptLimitHud";
+import { StatusHub } from "@/components/StatusHub";
 import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/")({
@@ -29,6 +30,8 @@ function Index() {
   const [usagePulse, setUsagePulse] = useState(0);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [chatsRefreshKey, setChatsRefreshKey] = useState(0);
+  const [statusHubOpen, setStatusHubOpen] = useState(false);
+  const [statusRefreshKey, setStatusRefreshKey] = useState(0);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -76,6 +79,7 @@ function Index() {
             activeChatId={activeChatId}
             onActiveChatChange={setActiveChatId}
             onChatsMutated={() => setChatsRefreshKey((k) => k + 1)}
+            onStatusSaved={() => setStatusRefreshKey((k) => k + 1)}
           />
         </div>
       </main>
@@ -87,8 +91,10 @@ function Index() {
         activeChatId={activeChatId}
         onSelectChat={(id) => setActiveChatId(id)}
         chatsRefreshKey={chatsRefreshKey}
+        onOpenStatusHub={() => setStatusHubOpen(true)}
       />
       <AuthDialog open={authOpen} onOpenChange={setAuthOpen} defaultMode={authMode} />
+      <StatusHub open={statusHubOpen} onOpenChange={setStatusHubOpen} refreshKey={statusRefreshKey} />
     </div>
   );
 }
