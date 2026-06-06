@@ -60,13 +60,22 @@ function Index() {
           <div className="flex items-center gap-2">
             <PromptLimitHud pulse={usagePulse} />
             {!user && (
-              <Button
-                size="sm"
-                onClick={() => { setAuthMode("signup"); setAuthOpen(true); }}
-                style={{ background: "linear-gradient(135deg, var(--sasa-cyan), var(--sasa-violet))", color: "oklch(0.12 0.04 265)" }}
-              >
-                Sign up
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { setAuthMode("login"); setAuthOpen(true); }}
+                >
+                  Log in
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => { setAuthMode("signup"); setAuthOpen(true); }}
+                  style={{ background: "linear-gradient(135deg, var(--sasa-cyan), var(--sasa-violet))", color: "oklch(0.12 0.04 265)" }}
+                >
+                  Sign up
+                </Button>
+              </>
             )}
           </div>
         </div>

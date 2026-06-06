@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { SASA_SYSTEM_PROMPT } from "@/lib/sasa-prompt";
 
@@ -18,37 +17,11 @@ const bodySchema = z.object({
   latestStatus: z.unknown().optional(),
 });
 
-async function verifyAuth(request: Request): Promise<boolean> {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return false;
-  const token = authHeader.slice("Bearer ".length).trim();
-  if (!token) return false;
-  const url = process.env.SUPABASE_URL;
-  const anon = process.env.SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !anon) return false;
-  try {
-    const supabase = createClient(url, anon, {
-      auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
-    });
-    const { data, error } = await supabase.auth.getClaims(token);
-    return !error && !!data?.claims?.sub;
-  } catch {
-    return false;
-  }
-}
-
 export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
         try {
-          if (!(await verifyAuth(request))) {
-            return new Response(JSON.stringify({ error: "Unauthorized" }), {
-              status: 401,
-              headers: { "Content-Type": "application/json" },
-            });
-          }
-
           const raw = await request.json().catch(() => null);
           const parsed = bodySchema.safeParse(raw);
           if (!parsed.success) {
