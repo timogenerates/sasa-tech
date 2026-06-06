@@ -61,7 +61,7 @@ export function ChatPanel({
   onChatsMutated,
   onStatusSaved,
 }: ChatPanelProps = {}) {
-  const { user, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [status, setStatus] = useState<SasaStatus | null>(null);
   const [input, setInput] = useState("");
@@ -184,7 +184,7 @@ export function ChatPanel({
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f) return;
-    const tier = (user ? (profileTier()) : "guest") as keyof typeof UPLOAD_LIMITS;
+    const tier: keyof typeof UPLOAD_LIMITS = user ? (profile?.tier ?? "free") : "guest";
     const cap = UPLOAD_LIMITS[tier];
     if (cap === 0) {
       toast.error("Image uploads require a free account. Sign up to attach pics~");
@@ -204,12 +204,6 @@ export function ChatPanel({
     reader.onload = () => setAttached({ name: f.name, dataUrl: String(reader.result), size: f.size });
     reader.readAsDataURL(f);
   }
-
-  function profileTier(): "free" | "monthly" | "prompts" {
-    return (useAuthProfile()?.tier ?? "free");
-  }
-  // Tiny indirection to keep ESLint happy about hook order — actually read from auth context
-  function useAuthProfile() { return useAuth().profile; }
 
   async function send(text: string) {
     const trimmed = text.trim();
