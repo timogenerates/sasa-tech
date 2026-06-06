@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { AnimatePresence, motion } from "framer-motion";
-import { Send, BookOpenCheck, RefreshCw } from "lucide-react";
+import { Send, BookOpenCheck, RefreshCw, Mic, MicOff, Paperclip, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -16,8 +16,22 @@ import { getGuestUsed, incGuestUsed } from "./PromptLimitHud";
 import { addMessage, createChat, getChatMessages } from "@/lib/chats.functions";
 import { saveStatusSnapshot } from "@/lib/status.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { SoundControls } from "./SoundControls";
+import { sfxClick, sfxKey } from "@/lib/sasa-sfx";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 
 const GUEST_LIMIT = 10;
+
+// Image upload size caps per tier (bytes)
+const UPLOAD_LIMITS: Record<"guest" | "free" | "monthly" | "prompts", number> = {
+  guest: 0,
+  free: 1 * 1024 * 1024,
+  monthly: 10 * 1024 * 1024,
+  prompts: 10 * 1024 * 1024,
+};
+
+// Deliberate typing reveal speed (characters / second)
+const TYPING_CPS = 55;
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -54,7 +68,20 @@ export function ChatPanel({
   const [streaming, setStreaming] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [attached, setAttached] = useState<{ name: string; dataUrl: string; size: number } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Deliberate typing: assistant text accumulates in assistantTruthRef, but
+  // we render only `revealed` chars of the last message. An interval advances
+  // revealed at TYPING_CPS and plays a soft keypress blip per chunk.
+  const assistantTruthRef = useRef<string>("");
+  const revealedRef = useRef<number>(0);
+  const typingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const voice = useVoiceInput((finalText) => {
+    setInput((prev) => (prev ? prev + " " : "") + finalText);
+  });
 
   // Guests use localStorage only. Authenticated users load from DB per chat.
   useEffect(() => {
@@ -114,9 +141,80 @@ export function ChatPanel({
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, streaming]);
 
+  // Stop any leftover typing interval on unmount
+  useEffect(() => () => { if (typingTimerRef.current) clearInterval(typingTimerRef.current); }, []);
+
+  function startTypingTimer() {
+    if (typingTimerRef.current) return;
+    const tickMs = 30;
+    const step = Math.max(1, Math.round((TYPING_CPS * tickMs) / 1000));
+    let blipCounter = 0;
+    typingTimerRef.current = setInterval(() => {
+      const truth = assistantTruthRef.current;
+      if (revealedRef.current >= truth.length) return;
+      revealedRef.current = Math.min(truth.length, revealedRef.current + step);
+      const shown = truth.slice(0, revealedRef.current);
+      setMessages((prev) => {
+        const copy = [...prev];
+        if (copy.length && copy[copy.length - 1].role === "assistant") {
+          copy[copy.length - 1] = { role: "assistant", content: shown };
+        }
+        return copy;
+      });
+      if ((blipCounter++ % 2) === 0) sfxKey();
+    }, tickMs);
+  }
+  function stopTypingTimer() {
+    if (typingTimerRef.current) { clearInterval(typingTimerRef.current); typingTimerRef.current = null; }
+  }
+  function flushTyping() {
+    revealedRef.current = assistantTruthRef.current.length;
+    const truth = assistantTruthRef.current;
+    setMessages((prev) => {
+      const copy = [...prev];
+      if (copy.length && copy[copy.length - 1].role === "assistant") {
+        copy[copy.length - 1] = { role: "assistant", content: truth };
+      }
+      return copy;
+    });
+    stopTypingTimer();
+  }
+
+  function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    const tier = (user ? (profileTier()) : "guest") as keyof typeof UPLOAD_LIMITS;
+    const cap = UPLOAD_LIMITS[tier];
+    if (cap === 0) {
+      toast.error("Image uploads require a free account. Sign up to attach pics~");
+      onRequestAuth?.("signup");
+      return;
+    }
+    if (f.size > cap) {
+      const mb = (cap / (1024 * 1024)).toFixed(0);
+      toast.error(`File too large. Your tier allows up to ${mb}MB.`);
+      return;
+    }
+    if (!f.type.startsWith("image/")) {
+      toast.error("Only images for now, master~");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setAttached({ name: f.name, dataUrl: String(reader.result), size: f.size });
+    reader.readAsDataURL(f);
+  }
+
+  function profileTier(): "free" | "monthly" | "prompts" {
+    return (useAuthProfile()?.tier ?? "free");
+  }
+  // Tiny indirection to keep ESLint happy about hook order — actually read from auth context
+  function useAuthProfile() { return useAuth().profile; }
+
   async function send(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || streaming) return;
+    if ((!trimmed && !attached) || streaming) return;
+    sfxClick();
 
     // Enforce prompt limits before contacting the model
     if (!user) {
@@ -141,8 +239,12 @@ export function ChatPanel({
       }
     }
 
-    const userMsg: Msg = { role: "user", content: trimmed };
+    const composed = attached
+      ? `![${attached.name}](${attached.dataUrl})\n\n${trimmed}`.trim()
+      : trimmed;
+    const userMsg: Msg = { role: "user", content: composed };
     const next = [...messages, userMsg];
+    setAttached(null);
     setMessages(next);
     setInput("");
     setStreaming(true);
@@ -161,7 +263,7 @@ export function ChatPanel({
           onActiveChatChange?.(chatId);
           onChatsMutated?.();
         }
-        await addMessage({ data: { chatId: chatId!, role: "user", content: trimmed } });
+        await addMessage({ data: { chatId: chatId!, role: "user", content: composed } });
       } catch (e) {
         console.error(e);
         toast.error("Couldn't save your message");
@@ -194,8 +296,10 @@ export function ChatPanel({
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = "";
-      let assistant = "";
+      assistantTruthRef.current = "";
+      revealedRef.current = 0;
       setMessages((p) => [...p, { role: "assistant", content: "" }]);
+      startTypingTimer();
 
       let done = false;
       while (!done) {
@@ -214,12 +318,7 @@ export function ChatPanel({
             const p = JSON.parse(json);
             const delta = p.choices?.[0]?.delta?.content as string | undefined;
             if (delta) {
-              assistant += delta;
-              setMessages((prev) => {
-                const copy = [...prev];
-                copy[copy.length - 1] = { role: "assistant", content: assistant };
-                return copy;
-              });
+              assistantTruthRef.current += delta;
             }
           } catch {
             buf = line + "\n" + buf;
@@ -228,6 +327,8 @@ export function ChatPanel({
         }
       }
 
+      flushTyping();
+      const assistant = assistantTruthRef.current;
       const latest = extractLatestStatus(assistant);
       if (latest) setStatus(latest);
 
@@ -252,6 +353,7 @@ export function ChatPanel({
       console.error(e);
       toast.error("Connection to SASA failed");
     } finally {
+      stopTypingTimer();
       setStreaming(false);
     }
   }
@@ -288,11 +390,12 @@ export function ChatPanel({
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => setLogOpen(true)}>
+        <div className="flex gap-2 items-center">
+          <SoundControls />
+          <Button size="sm" variant="outline" onClick={() => { sfxClick(); setLogOpen(true); }}>
             <BookOpenCheck size={14} className="mr-1" /> Log
           </Button>
-          <Button size="sm" variant="ghost" onClick={reset} title="Reset session">
+          <Button size="sm" variant="ghost" onClick={() => { sfxClick(); reset(); }} title="Reset session">
             <RefreshCw size={14} />
           </Button>
         </div>
@@ -320,26 +423,56 @@ export function ChatPanel({
         style={{ borderColor: "oklch(0.32 0.07 250 / 0.6)" }}
         onSubmit={(e) => { e.preventDefault(); send(input); }}
       >
-        <Textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              send(input);
-            }
-          }}
-          placeholder="Tell SASA anything… your day, goals, links, journal snippets…"
-          rows={2}
-          className="resize-none text-sm"
-        />
-        <Button
-          type="submit"
-          disabled={streaming || !input.trim()}
-          style={{ background: "linear-gradient(135deg, var(--sasa-cyan), var(--sasa-violet))", color: "oklch(0.12 0.04 265)" }}
-        >
-          <Send size={16} />
-        </Button>
+        <div className="flex-1 flex flex-col gap-2">
+          {attached && (
+            <div className="flex items-center gap-2 px-2 py-1 rounded border text-xs"
+              style={{ borderColor: "oklch(0.32 0.07 250 / 0.5)" }}>
+              <img src={attached.dataUrl} alt={attached.name}
+                className="h-10 w-10 object-cover rounded" />
+              <span className="truncate flex-1">{attached.name} · {(attached.size / 1024).toFixed(0)} KB</span>
+              <button type="button" onClick={() => setAttached(null)}
+                className="text-muted-foreground hover:text-foreground">
+                <X size={12} />
+              </button>
+            </div>
+          )}
+          <Textarea
+            value={voice.listening ? (input + (voice.transcript ? (input ? " " : "") + voice.transcript : "")) : input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send(input);
+              }
+            }}
+            placeholder={voice.listening ? "Listening…" : "Tell SASA anything…"}
+            rows={2}
+            className="resize-none text-sm"
+          />
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickFile} />
+        <div className="flex flex-col gap-2">
+          <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0"
+            title="Attach image" onClick={() => { sfxClick(); fileRef.current?.click(); }}>
+            <Paperclip size={14} />
+          </Button>
+          {voice.supported && (
+            <Button type="button" size="sm" variant={voice.listening ? "default" : "ghost"}
+              className="h-9 w-9 p-0"
+              title={voice.listening ? "Stop dictation" : "Dictate"}
+              onClick={() => { sfxClick(); voice.toggle(); }}>
+              {voice.listening ? <MicOff size={14} /> : <Mic size={14} />}
+            </Button>
+          )}
+          <Button
+            type="submit"
+            disabled={streaming || (!input.trim() && !attached)}
+            className="h-9 w-9 p-0"
+            style={{ background: "linear-gradient(135deg, var(--sasa-cyan), var(--sasa-violet))", color: "oklch(0.12 0.04 265)" }}
+          >
+            <Send size={14} />
+          </Button>
+        </div>
       </form>
 
       <DailyLogForm open={logOpen} onClose={() => setLogOpen(false)} onSubmit={submitLog} />
