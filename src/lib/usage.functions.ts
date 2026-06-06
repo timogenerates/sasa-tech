@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const FREE_DAILY_LIMIT = 25;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -16,8 +17,8 @@ export type UsageResult = {
 export const consumePromptCredit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<UsageResult> => {
-    const { supabase, userId } = context;
-    const { data: profile, error } = await supabase
+    const { userId } = context;
+    const { data: profile, error } = await supabaseAdmin
       .from("profiles")
       .select("tier, prompts_remaining, daily_prompts_used, daily_reset_at")
       .eq("id", userId)
@@ -48,7 +49,7 @@ export const consumePromptCredit = createServerFn({ method: "POST" })
       if (remaining <= 0) {
         return { ok: false, reason: "prompts_exhausted", tier: "prompts", dailyUsed, dailyLimit: -1, promptsRemaining: 0 };
       }
-      const { error: upErr } = await supabase
+      const { error: upErr } = await supabaseAdmin
         .from("profiles")
         .update({ prompts_remaining: remaining - 1, updated_at: now.toISOString() })
         .eq("id", userId);
@@ -60,7 +61,7 @@ export const consumePromptCredit = createServerFn({ method: "POST" })
     if (dailyUsed >= FREE_DAILY_LIMIT) {
       return { ok: false, reason: "daily_exhausted", tier: "free", dailyUsed, dailyLimit: FREE_DAILY_LIMIT, promptsRemaining: 0 };
     }
-    const { error: upErr } = await supabase
+    const { error: upErr } = await supabaseAdmin
       .from("profiles")
       .update({
         daily_prompts_used: dailyUsed + 1,
