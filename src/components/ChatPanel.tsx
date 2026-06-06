@@ -265,19 +265,14 @@ export function ChatPanel({
     }
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error("Please sign in to chat with SASA");
-        onRequestAuth?.("login");
-        setStreaming(false);
-        return;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (user) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) headers.Authorization = `Bearer ${session.access_token}`;
       }
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers,
         body: JSON.stringify({ messages: next, latestStatus: status }),
       });
       if (!res.ok || !res.body) {
