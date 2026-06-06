@@ -15,6 +15,7 @@ import { consumePromptCredit } from "@/lib/usage.functions";
 import { getGuestUsed, incGuestUsed } from "./PromptLimitHud";
 import { addMessage, createChat, getChatMessages } from "@/lib/chats.functions";
 import { saveStatusSnapshot } from "@/lib/status.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 const GUEST_LIMIT = 10;
 
@@ -168,9 +169,19 @@ export function ChatPanel({
     }
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please sign in to chat with SASA");
+        onRequestAuth?.("login");
+        setStreaming(false);
+        return;
+      }
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({ messages: next, latestStatus: status }),
       });
       if (!res.ok || !res.body) {
