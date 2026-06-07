@@ -4,6 +4,7 @@ import { MessageSquarePlus, BarChart3, UserCircle2, Settings, LogOut, Crown, Spa
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { ChatHistoryList } from "./ChatHistoryList";
+import { useNavigate } from "@tanstack/react-router";
 
 type Props = {
   open: boolean;
@@ -22,6 +23,7 @@ export function SasaSidebar({
   onOpenStatusHub,
 }: Props) {
   const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const item = (icon: React.ReactNode, label: string, onClick: () => void, disabled = false) => (
     <button
@@ -78,17 +80,10 @@ export function SasaSidebar({
               onOpenChange(false);
             }, !user)}
             {item(<Sparkles size={16} />, "Character Design", () => toast.info("3D avatar customization — paid tier feature, coming soon"))}
-            {item(<Crown size={16} />, "Upgrade Plan", () => {
-              const email = user?.email ?? "";
-              toast(
-                `Patreon: patreon.com/sasaupgrades · use email "${email || "your SASA email"}" or your tier won't sync.`,
-                { duration: 6000 },
-              );
-              window.open("https://www.patreon.com/sasaupgrades", "_blank", "noopener");
-            })}
-            {item(<UserCircle2 size={16} />, "User Profile", () => user ? toast.info("Profile editor — coming next phase") : guestOnly(), !user)}
-            {item(<Settings size={16} />, "Settings", () => toast.info("Settings panel — coming next phase"))}
-            {item(<Link2 size={16} />, "Synchronization", () => user ? toast.info("Account sync — coming next phase") : guestOnly(), !user)}
+            {item(<Crown size={16} />, "Upgrade Plan", () => { navigate({ to: "/upgrade" }); onOpenChange(false); })}
+            {item(<UserCircle2 size={16} />, "User Profile", () => { if (!user) return guestOnly(); navigate({ to: "/profile" }); onOpenChange(false); }, !user)}
+            {item(<Settings size={16} />, "Settings", () => { navigate({ to: "/settings" }); onOpenChange(false); })}
+            {item(<Link2 size={16} />, "Synchronization", () => { if (!user) return guestOnly(); navigate({ to: "/sync" }); onOpenChange(false); }, !user)}
           </div>
         </div>
 

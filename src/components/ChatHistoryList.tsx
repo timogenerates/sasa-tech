@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { archiveChat, listChats, renameChat, type ChatRow } from "@/lib/chats.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -21,6 +22,7 @@ export function ChatHistoryList({ activeChatId, onSelect, refreshKey = 0 }: Prop
   const { user } = useAuth();
   const [chats, setChats] = useState<ChatRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [q, setQ] = useState("");
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -37,13 +39,16 @@ export function ChatHistoryList({ activeChatId, onSelect, refreshKey = 0 }: Prop
 
   useEffect(() => { void load(); }, [load, refreshKey]);
 
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return chats;
+    return chats.filter((c) => c.title.toLowerCase().includes(needle));
+  }, [chats, q]);
+
   if (!user) return null;
 
   if (loading && chats.length === 0) {
     return <div className="px-3 py-2 text-xs text-muted-foreground">Loading…</div>;
-  }
-  if (chats.length === 0) {
-    return <div className="px-3 py-2 text-xs text-muted-foreground">No chats yet. Say hi to SASA~</div>;
   }
 
   async function doRename(c: ChatRow) {
@@ -70,8 +75,23 @@ export function ChatHistoryList({ activeChatId, onSelect, refreshKey = 0 }: Prop
   }
 
   return (
-    <div className="space-y-0.5">
-      {chats.map((c) => {
+    <div className="space-y-1">
+      <div className="px-2 pb-1 relative">
+        <Search size={12} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search chats…"
+          className="h-7 pl-7 text-xs bg-background/50"
+        />
+      </div>
+      {chats.length === 0 && (
+        <div className="px-3 py-2 text-xs text-muted-foreground">No chats yet. Say hi to SASA~</div>
+      )}
+      {chats.length > 0 && filtered.length === 0 && (
+        <div className="px-3 py-2 text-xs text-muted-foreground">No matches for "{q}"</div>
+      )}
+      {filtered.map((c) => {
         const active = c.id === activeChatId;
         return (
           <div
