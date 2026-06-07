@@ -23,7 +23,7 @@ export const consumePromptCredit = createServerFn({ method: "POST" })
       .select("tier, prompts_remaining, daily_prompts_used, daily_reset_at")
       .eq("id", userId)
       .single();
-    if (error || !profile) throw new Error("Profile not found");
+    if (error || !profile) { console.error("[usage] read profile", error); throw new Error("Profile not found."); }
 
     const now = new Date();
     let dailyUsed = profile.daily_prompts_used ?? 0;
@@ -53,7 +53,7 @@ export const consumePromptCredit = createServerFn({ method: "POST" })
         .from("profiles")
         .update({ prompts_remaining: remaining - 1, updated_at: now.toISOString() })
         .eq("id", userId);
-      if (upErr) throw new Error(upErr.message);
+      if (upErr) { console.error("[usage] decrement prompts", upErr); throw new Error("Couldn't update usage."); }
       return { ok: true, tier: "prompts", dailyUsed, dailyLimit: -1, promptsRemaining: remaining - 1 };
     }
 
@@ -69,6 +69,6 @@ export const consumePromptCredit = createServerFn({ method: "POST" })
         updated_at: now.toISOString(),
       })
       .eq("id", userId);
-    if (upErr) throw new Error(upErr.message);
+    if (upErr) { console.error("[usage] daily increment", upErr); throw new Error("Couldn't update usage."); }
     return { ok: true, tier: "free", dailyUsed: dailyUsed + 1, dailyLimit: FREE_DAILY_LIMIT, promptsRemaining: 0 };
   });
