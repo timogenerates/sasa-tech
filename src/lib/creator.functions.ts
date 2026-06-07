@@ -25,8 +25,8 @@ async function assertCreator(email: string | undefined | null): Promise<void> {
     .select("email")
     .eq("email", email.toLowerCase())
     .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error("Forbidden: not a creator");
+  if (error) { console.error("[creator] assertCreator", error); throw new Error("Authorization check failed."); }
+  if (!data) throw new Error("Forbidden");
 }
 
 export const isCreator = createServerFn({ method: "GET" })
@@ -50,7 +50,7 @@ export const listAllUsers = createServerFn({ method: "GET" })
       .select("id,email,display_name,tier,prompts_remaining,daily_prompts_used,tier_expires_at,flagged,flagged_at,created_at,updated_at")
       .order("updated_at", { ascending: false })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[creator] listAllUsers", error); throw new Error("Couldn't load users."); }
     return (data ?? []) as CreatorUserRow[];
   });
 
@@ -80,7 +80,7 @@ export const setUserTier = createServerFn({ method: "POST" })
     if (data.tierExpiresAt !== undefined) patch.tier_expires_at = data.tierExpiresAt;
     if (data.promptsRemaining !== undefined) patch.prompts_remaining = data.promptsRemaining;
     const { error } = await supabaseAdmin.from("profiles").update(patch).eq("id", data.userId);
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[creator] setUserTier", error); throw new Error("Couldn't update tier."); }
     return { ok: true };
   });
 
@@ -99,6 +99,6 @@ export const setUserFlag = createServerFn({ method: "POST" })
         updated_at: new Date().toISOString(),
       })
       .eq("id", data.userId);
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[creator] setUserFlag", error); throw new Error("Couldn't update flag."); }
     return { ok: true };
   });

@@ -29,7 +29,7 @@ export const listChats = createServerFn({ method: "GET" })
       .eq("archived", false)
       .order("updated_at", { ascending: false })
       .limit(100);
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[chats] listChats", error); throw new Error("Couldn't load chats."); }
     return (data ?? []) as ChatRow[];
   });
 
@@ -45,7 +45,7 @@ export const createChat = createServerFn({ method: "POST" })
       .insert({ user_id: userId, title: data.title ?? "New chat" })
       .select("id,title,archived,created_at,updated_at")
       .single();
-    if (error || !row) throw new Error(error?.message ?? "Failed to create chat");
+    if (error || !row) { console.error("[chats] createChat", error); throw new Error("Couldn't create chat."); }
     return row as ChatRow;
   });
 
@@ -63,7 +63,7 @@ export const getChatMessages = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .order("created_at", { ascending: true })
       .limit(500);
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[chats] getChatMessages", error); throw new Error("Couldn't load messages."); }
     return (rows ?? []) as MessageRow[];
   });
 
@@ -90,7 +90,7 @@ export const addMessage = createServerFn({ method: "POST" })
       })
       .select("id,chat_id,role,content,created_at")
       .single();
-    if (error || !row) throw new Error(error?.message ?? "Failed to save message");
+    if (error || !row) { console.error("[chats] addMessage", error); throw new Error("Couldn't save message."); }
     await supabase
       .from("chats")
       .update({ updated_at: new Date().toISOString() })
@@ -113,7 +113,7 @@ export const renameChat = createServerFn({ method: "POST" })
       .update({ title: data.title, updated_at: new Date().toISOString() })
       .eq("id", data.chatId)
       .eq("user_id", userId);
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[chats] renameChat", error); throw new Error("Couldn't rename chat."); }
     return { ok: true };
   });
 
@@ -129,6 +129,6 @@ export const archiveChat = createServerFn({ method: "POST" })
       .update({ archived: true, updated_at: new Date().toISOString() })
       .eq("id", data.chatId)
       .eq("user_id", userId);
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[chats] archiveChat", error); throw new Error("Couldn't archive chat."); }
     return { ok: true };
   });

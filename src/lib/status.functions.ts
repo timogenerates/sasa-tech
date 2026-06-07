@@ -37,7 +37,7 @@ export const saveStatusSnapshot = createServerFn({ method: "POST" })
       })
       .select("id")
       .single();
-    if (error || !row) throw new Error(error?.message ?? "Failed to save snapshot");
+    if (error || !row) { console.error("[status] save", error); throw new Error("Couldn't save snapshot."); }
     return { id: row.id };
   });
 
@@ -51,6 +51,6 @@ export const listStatusSnapshots = createServerFn({ method: "GET" })
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(100);
-    if (error) throw new Error(error.message);
+    if (error) { console.error("[status] list", error); throw new Error("Couldn't load snapshots."); }
     return (data ?? []) as unknown as SnapshotRow[];
   });
