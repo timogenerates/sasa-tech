@@ -25,9 +25,9 @@ const GUEST_LIMIT = 10;
 // Image upload size caps per tier (bytes)
 const UPLOAD_LIMITS: Record<"guest" | "free" | "monthly" | "prompts", number> = {
   guest: 0,
-  free: 1 * 1024 * 1024,
-  monthly: 10 * 1024 * 1024,
-  prompts: 10 * 1024 * 1024,
+  free: 15 * 1024 * 1024,
+  monthly: 150 * 1024 * 1024,
+  prompts: 150 * 1024 * 1024,
 };
 
 // Deliberate typing reveal speed (characters / second)
@@ -196,19 +196,37 @@ export function ChatPanel({
       toast.error(`File too large. Your tier allows up to ${mb}MB.`);
       return;
     }
-    if (!f.type.startsWith("image/")) {
-      toast.error("Only images for now, master~");
-      return;
-    }
+    // Accept images, PDFs, docs, audio/video. Non-image files attach by name
+    // only (SASA receives a textual reference rather than the raw bytes).
+    const isImage = f.type.startsWith("image/");
     const reader = new FileReader();
-    reader.onload = () => setAttached({ name: f.name, dataUrl: String(reader.result), size: f.size });
-    reader.readAsDataURL(f);
+    reader.onload = () =>
+      setAttached({
+        name: f.name,
+        dataUrl: isImage ? String(reader.result) : "",
+        size: f.size,
+      });
+    if (isImage) reader.readAsDataURL(f);
+    else setAttached({ name: f.name, dataUrl: "", size: f.size });
   }
 
   async function send(text: string) {
     const trimmed = text.trim();
     if ((!trimmed && !attached) || streaming) return;
     sfxClick();
+
+    // Auto-open the Daily Log dialog if the user is asking to fill it in,
+    // instead of routing the request through chat. SASA-side seamless UX.
+    if (
+      trimmed &&
+      !attached &&
+      /\b(open|start|fill|begin|do|launch)\b[^.?!]{0,40}\b(daily\s*)?log\b/i.test(trimmed)
+    ) {
+      setInput("");
+      setLogOpen(true);
+      toast.info("Daily log opened — fill it in, master~");
+      return;
+    }
 
     // Enforce prompt limits before contacting the model
     if (!user) {
@@ -234,7 +252,9 @@ export function ChatPanel({
     }
 
     const composed = attached
-      ? `![${attached.name}](${attached.dataUrl})\n\n${trimmed}`.trim()
+      ? attached.dataUrl
+        ? `![${attached.name}](${attached.dataUrl})\n\n${trimmed}`.trim()
+        : `[Attached file: ${attached.name} · ${(attached.size / 1024).toFixed(0)} KB]\n\n${trimmed}`.trim()
       : trimmed;
     const userMsg: Msg = { role: "user", content: composed };
     const next = [...messages, userMsg];
@@ -381,6 +401,9 @@ export function ChatPanel({
         </div>
         <div className="flex gap-2 items-center">
           <SoundControls />
+          <span className="hidden md:inline text-[10px] tracking-widest text-muted-foreground italic">
+            fill out your daily log here! →
+          </span>
           <Button size="sm" variant="outline" onClick={() => { sfxClick(); setLogOpen(true); }}>
             <BookOpenCheck size={14} className="mr-1" /> Log
           </Button>
@@ -416,8 +439,14 @@ export function ChatPanel({
           {attached && (
             <div className="flex items-center gap-2 px-2 py-1 rounded border text-xs"
               style={{ borderColor: "oklch(0.32 0.07 250 / 0.5)" }}>
-              <img src={attached.dataUrl} alt={attached.name}
-                className="h-10 w-10 object-cover rounded" />
+              {attached.dataUrl ? (
+                <img src={attached.dataUrl} alt={attached.name}
+                  className="h-10 w-10 object-cover rounded" />
+              ) : (
+                <div className="h-10 w-10 rounded grid place-items-center bg-secondary text-[9px] uppercase tracking-widest text-muted-foreground">
+                  file
+                </div>
+              )}
               <span className="truncate flex-1">{attached.name} · {(attached.size / 1024).toFixed(0)} KB</span>
               <button type="button" onClick={() => setAttached(null)}
                 className="text-muted-foreground hover:text-foreground">
@@ -439,10 +468,16 @@ export function ChatPanel({
             className="resize-none text-sm"
           />
         </div>
-        <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickFile} />
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.txt,.md,audio/*,video/*"
+          hidden
+          onChange={onPickFile}
+        />
         <div className="flex flex-col gap-2">
           <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0"
-            title="Attach image" onClick={() => { sfxClick(); fileRef.current?.click(); }}>
+            title="Attach file" onClick={() => { sfxClick(); fileRef.current?.click(); }}>
             <Paperclip size={14} />
           </Button>
           {voice.supported && (
