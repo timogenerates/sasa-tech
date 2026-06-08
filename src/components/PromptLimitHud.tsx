@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
 const GUEST_KEY = "sasa:guest:prompts_used";
-const GUEST_LIMIT = 10;
-const FREE_LIMIT = 25;
+const GUEST_LIMIT = 7;
+const FREE_LIMIT = 20;
 
 export function getGuestUsed(): number {
   if (typeof window === "undefined") return 0;
