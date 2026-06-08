@@ -252,7 +252,9 @@ export function ChatPanel({
     }
 
     const composed = attached
-      ? `![${attached.name}](${attached.dataUrl})\n\n${trimmed}`.trim()
+      ? attached.dataUrl
+        ? `![${attached.name}](${attached.dataUrl})\n\n${trimmed}`.trim()
+        : `[Attached file: ${attached.name} · ${(attached.size / 1024).toFixed(0)} KB]\n\n${trimmed}`.trim()
       : trimmed;
     const userMsg: Msg = { role: "user", content: composed };
     const next = [...messages, userMsg];
@@ -437,8 +439,14 @@ export function ChatPanel({
           {attached && (
             <div className="flex items-center gap-2 px-2 py-1 rounded border text-xs"
               style={{ borderColor: "oklch(0.32 0.07 250 / 0.5)" }}>
-              <img src={attached.dataUrl} alt={attached.name}
-                className="h-10 w-10 object-cover rounded" />
+              {attached.dataUrl ? (
+                <img src={attached.dataUrl} alt={attached.name}
+                  className="h-10 w-10 object-cover rounded" />
+              ) : (
+                <div className="h-10 w-10 rounded grid place-items-center bg-secondary text-[9px] uppercase tracking-widest text-muted-foreground">
+                  file
+                </div>
+              )}
               <span className="truncate flex-1">{attached.name} · {(attached.size / 1024).toFixed(0)} KB</span>
               <button type="button" onClick={() => setAttached(null)}
                 className="text-muted-foreground hover:text-foreground">
@@ -460,10 +468,16 @@ export function ChatPanel({
             className="resize-none text-sm"
           />
         </div>
-        <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickFile} />
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.txt,.md,audio/*,video/*"
+          hidden
+          onChange={onPickFile}
+        />
         <div className="flex flex-col gap-2">
           <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0"
-            title="Attach image" onClick={() => { sfxClick(); fileRef.current?.click(); }}>
+            title="Attach file" onClick={() => { sfxClick(); fileRef.current?.click(); }}>
             <Paperclip size={14} />
           </Button>
           {voice.supported && (
