@@ -20,7 +20,7 @@ import { SoundControls } from "./SoundControls";
 import { sfxClick, sfxKey } from "@/lib/sasa-sfx";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 
-const GUEST_LIMIT = 10;
+const GUEST_LIMIT = 7;
 
 // Image upload size caps per tier (bytes)
 const UPLOAD_LIMITS: Record<"guest" | "free" | "monthly" | "prompts", number> = {
@@ -231,7 +231,7 @@ export function ChatPanel({
     // Enforce prompt limits before contacting the model
     if (!user) {
       if (getGuestUsed() >= GUEST_LIMIT) {
-        toast.error("Guest limit reached (10 prompts). Sign up for 25 free per day~");
+        toast.error("Guest limit reached (7 prompts). Sign up for 20 free per day~");
         onRequestAuth?.("signup");
         return;
       }

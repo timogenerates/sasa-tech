@@ -51,7 +51,7 @@ export function SasaSidebar({
               <span className="ml-2 sasa-mono text-[10px] uppercase">{profile?.tier ?? "free"}</span>
             </div>
           ) : (
-            <div className="text-xs text-muted-foreground">Guest mode · 10 prompts total</div>
+            <div className="text-xs text-muted-foreground">Guest mode · 7 prompts total</div>
           )}
         </SheetHeader>
 
@@ -101,10 +101,9 @@ export function SasaSidebar({
               <LogOut size={16} className="mr-2" /> Sign out
             </Button>
           ) : (
-            <div className="flex gap-2">
-              <Button className="flex-1" onClick={() => { onRequestAuth("login"); onOpenChange(false); }}>Log in</Button>
-              <Button variant="outline" className="flex-1" onClick={() => { onRequestAuth("signup"); onOpenChange(false); }}>Sign up</Button>
-            </div>
+            <Button className="w-full" onClick={() => { onRequestAuth("signup"); onOpenChange(false); }}>
+              Sign up / Log in
+            </Button>
           )}
         </div>
       </SheetContent>

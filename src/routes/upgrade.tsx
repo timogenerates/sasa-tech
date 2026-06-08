@@ -52,9 +52,9 @@ function UpgradePage() {
 
         <div className="grid md:grid-cols-3 gap-4">
           {[
-            { name: "Free", price: "$0", perks: ["25 prompts / day", "Chat history", "Status Hub (view only)"], current: profile?.tier === "free" || !profile },
-            { name: "Monthly", price: "Patreon $", perks: ["Unlimited prompts", "Cross-comparison charts", "Trend graphs", "Priority responses"], current: profile?.tier === "monthly" },
-            { name: "Prompts Pack", price: "Patreon $", perks: ["Pre-paid prompt bundle", "Cross-comparison charts", "Trend graphs"], current: profile?.tier === "prompts" },
+            { name: "Free", price: "$0", perks: ["20 prompts / day", "Daily reset", "Chat history", "Status Hub (view only)"], current: profile?.tier === "free" || !profile },
+            { name: "Monthly", price: "$18 / mo", perks: ["Unlimited prompts", "Status Hub trends & charts", "Character Design (3D avatar)", "Synchronization (Notion / GDrive / GitHub)", "Priority responses"], current: profile?.tier === "monthly" },
+            { name: "Prompts Pack", price: "$3 / 120 prompts", perks: ["120 prompts, no expiry", "No daily reset cap", "Status Hub trends & charts", "Character Design (3D avatar)", "Synchronization access", "Top up any time"], current: profile?.tier === "prompts" },
           ].map((t) => (
             <div key={t.name} className={`sasa-panel rounded-md p-4 ${t.current ? "ring-2 ring-primary" : ""}`}>
               <div className="sasa-mono text-[10px] uppercase tracking-widest text-muted-foreground">{t.name}</div>

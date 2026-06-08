@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-const FREE_DAILY_LIMIT = 25;
+const FREE_DAILY_LIMIT = 20;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type UsageResult = {
