@@ -196,13 +196,18 @@ export function ChatPanel({
       toast.error(`File too large. Your tier allows up to ${mb}MB.`);
       return;
     }
-    if (!f.type.startsWith("image/")) {
-      toast.error("Only images for now, master~");
-      return;
-    }
+    // Accept images, PDFs, docs, audio/video. Non-image files attach by name
+    // only (SASA receives a textual reference rather than the raw bytes).
+    const isImage = f.type.startsWith("image/");
     const reader = new FileReader();
-    reader.onload = () => setAttached({ name: f.name, dataUrl: String(reader.result), size: f.size });
-    reader.readAsDataURL(f);
+    reader.onload = () =>
+      setAttached({
+        name: f.name,
+        dataUrl: isImage ? String(reader.result) : "",
+        size: f.size,
+      });
+    if (isImage) reader.readAsDataURL(f);
+    else setAttached({ name: f.name, dataUrl: "", size: f.size });
   }
 
   async function send(text: string) {
