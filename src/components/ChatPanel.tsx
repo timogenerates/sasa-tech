@@ -25,9 +25,9 @@ const GUEST_LIMIT = 10;
 // Image upload size caps per tier (bytes)
 const UPLOAD_LIMITS: Record<"guest" | "free" | "monthly" | "prompts", number> = {
   guest: 0,
-  free: 1 * 1024 * 1024,
-  monthly: 10 * 1024 * 1024,
-  prompts: 10 * 1024 * 1024,
+  free: 15 * 1024 * 1024,
+  monthly: 150 * 1024 * 1024,
+  prompts: 150 * 1024 * 1024,
 };
 
 // Deliberate typing reveal speed (characters / second)
@@ -210,6 +210,19 @@ export function ChatPanel({
     if ((!trimmed && !attached) || streaming) return;
     sfxClick();
 
+    // Auto-open the Daily Log dialog if the user is asking to fill it in,
+    // instead of routing the request through chat. SASA-side seamless UX.
+    if (
+      trimmed &&
+      !attached &&
+      /\b(open|start|fill|begin|do|launch)\b[^.?!]{0,40}\b(daily\s*)?log\b/i.test(trimmed)
+    ) {
+      setInput("");
+      setLogOpen(true);
+      toast.info("Daily log opened — fill it in, master~");
+      return;
+    }
+
     // Enforce prompt limits before contacting the model
     if (!user) {
       if (getGuestUsed() >= GUEST_LIMIT) {
@@ -381,6 +394,9 @@ export function ChatPanel({
         </div>
         <div className="flex gap-2 items-center">
           <SoundControls />
+          <span className="hidden md:inline text-[10px] tracking-widest text-muted-foreground italic">
+            fill out your daily log here! →
+          </span>
           <Button size="sm" variant="outline" onClick={() => { sfxClick(); setLogOpen(true); }}>
             <BookOpenCheck size={14} className="mr-1" /> Log
           </Button>
