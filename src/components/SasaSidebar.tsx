@@ -79,7 +79,12 @@ export function SasaSidebar({
               onOpenStatusHub?.();
               onOpenChange(false);
             }, !user)}
-            {item(<Sparkles size={16} />, "Character Design", () => toast.info("3D avatar customization — paid tier feature, coming soon"))}
+            {item(<Sparkles size={16} />, "Character Design", () => {
+              if (profile?.tier !== "monthly") {
+                return toast.info("Character Design is a Monthly-tier perk only. Upgrade to the Monthly plan to unlock 3D avatar customization~");
+              }
+              toast.info("3D avatar customization — coming soon, master~");
+            })}
             {item(<Crown size={16} />, "Upgrade Plan", () => { navigate({ to: "/upgrade" }); onOpenChange(false); })}
             {item(<UserCircle2 size={16} />, "User Profile", () => { if (!user) return guestOnly(); navigate({ to: "/profile" }); onOpenChange(false); }, !user)}
             {item(<Settings size={16} />, "Settings", () => { navigate({ to: "/settings" }); onOpenChange(false); })}
