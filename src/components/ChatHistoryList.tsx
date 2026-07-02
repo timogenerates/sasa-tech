@@ -19,7 +19,7 @@ type Props = {
 };
 
 export function ChatHistoryList({ activeChatId, onSelect, refreshKey = 0 }: Props) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [chats, setChats] = useState<ChatRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [q, setQ] = useState("");
@@ -102,10 +102,22 @@ export function ChatHistoryList({ activeChatId, onSelect, refreshKey = 0 }: Prop
           >
             <button
               onClick={() => onSelect(c.id)}
-              className="flex-1 text-left px-3 py-2 truncate"
+              className="flex-1 flex items-center gap-2 text-left px-3 py-2 min-w-0"
               title={c.title}
             >
-              <span className={active ? "text-primary" : ""}>{c.title}</span>
+              <span
+                className="h-6 w-6 rounded-full overflow-hidden shrink-0 grid place-items-center bg-secondary"
+                aria-hidden
+              >
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-[10px] sasa-mono text-muted-foreground uppercase">
+                    {(profile?.display_name ?? user?.email ?? "U").slice(0, 1)}
+                  </span>
+                )}
+              </span>
+              <span className={`truncate ${active ? "text-primary" : ""}`}>{c.title}</span>
             </button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
