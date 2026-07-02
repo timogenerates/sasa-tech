@@ -249,4 +249,27 @@
     background: oklch(0.14 0.04 265 / 0.9);
     text-shadow: 0 0 8px var(--sasa-cyan);
   }
+
+  /*
+   * Grounded, modern subheading used for descriptive lines like the
+   * app tagline, "SASA · online", the daily-log hint, and the Patreon
+   * blurb. A touch bigger, thicker, and warmer than the default
+   * ultra-thin muted text so it reads comfortably.
+   */
+  .sasa-subheading {
+    font-family: 'Space Grotesk', 'Rajdhani', 'Inter', system-ui, sans-serif;
+    font-weight: 500;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    letter-spacing: 0.005em;
+    color: oklch(0.86 0.03 235);
+  }
+  .sasa-subheading-sm {
+    font-family: 'Space Grotesk', 'Rajdhani', 'Inter', system-ui, sans-serif;
+    font-weight: 500;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+    color: oklch(0.82 0.03 235);
+  }
 }
