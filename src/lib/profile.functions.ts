@@ -19,3 +19,21 @@ export const updateDisplayName = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+export const updateAvatarUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { avatarUrl: string | null }) =>
+    z.object({ avatarUrl: z.string().url().max(1024).nullable() }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("profiles")
+      .update({ avatar_url: data.avatarUrl, updated_at: new Date().toISOString() })
+      .eq("id", userId);
+    if (error) {
+      console.error("[profile] updateAvatarUrl", error);
+      throw new Error("Couldn't update avatar.");
+    }
+    return { ok: true };
+  });

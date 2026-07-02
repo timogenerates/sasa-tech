@@ -8,6 +8,7 @@ export type ChatRow = {
   archived: boolean;
   created_at: string;
   updated_at: string;
+  summary: string;
 };
 
 export type MessageRow = {
@@ -24,7 +25,7 @@ export const listChats = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("chats")
-      .select("id,title,archived,created_at,updated_at")
+      .select("id,title,archived,created_at,updated_at,summary")
       .eq("user_id", userId)
       .eq("archived", false)
       .order("updated_at", { ascending: false })
@@ -43,10 +44,125 @@ export const createChat = createServerFn({ method: "POST" })
     const { data: row, error } = await supabase
       .from("chats")
       .insert({ user_id: userId, title: data.title ?? "New chat" })
-      .select("id,title,archived,created_at,updated_at")
+      .select("id,title,archived,created_at,updated_at,summary")
       .single();
     if (error || !row) { console.error("[chats] createChat", error); throw new Error("Couldn't create chat."); }
     return row as ChatRow;
+  });
+
+// Fetch a chat's rolling summary. Used by the client to build API context.
+export const getChatSummary = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { chatId: string }) =>
+    z.object({ chatId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ context, data }): Promise<{ summary: string }> => {
+    const { supabase, userId } = context;
+    const { data: row, error } = await supabase
+      .from("chats")
+      .select("summary")
+      .eq("id", data.chatId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) { console.error("[chats] getChatSummary", error); throw new Error("Couldn't load summary."); }
+    return { summary: (row?.summary ?? "") as string };
+  });
+
+/**
+ * Regenerate a chat's rolling summary whenever the persisted message
+ * count crosses a new multiple of 20. Incorporates the messages that
+ * are dropping out of the last-20 verbatim window into the existing
+ * summary using a single LLM call.
+ */
+export const updateSummaryIfNeeded = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { chatId: string }) =>
+    z.object({ chatId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ context, data }): Promise<{ updated: boolean }> => {
+    const { supabase, userId } = context;
+    // Count all messages in the chat.
+    const { count, error: cErr } = await supabase
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("chat_id", data.chatId)
+      .eq("user_id", userId);
+    if (cErr) { console.error("[chats] updateSummary count", cErr); return { updated: false }; }
+    const total = count ?? 0;
+    // Only re-summarize when we've just crossed a 20-message boundary
+    // AND there are messages older than the last-20 window.
+    if (total <= 20 || total % 20 !== 0) return { updated: false };
+
+    // Load the messages that are about to fall out of / already outside
+    // the verbatim window — everything except the last 20.
+    const olderLimit = total - 20;
+    const { data: older, error: mErr } = await supabase
+      .from("messages")
+      .select("role,content")
+      .eq("chat_id", data.chatId)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(olderLimit);
+    if (mErr || !older) { console.error("[chats] updateSummary load", mErr); return { updated: false }; }
+
+    // Fetch prior summary
+    const { data: chatRow } = await supabase
+      .from("chats")
+      .select("summary")
+      .eq("id", data.chatId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    const priorSummary = (chatRow?.summary ?? "").toString();
+
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) { console.error("[chats] updateSummary: missing LOVABLE_API_KEY"); return { updated: false }; }
+
+    const transcript = older
+      .map((m: { role: string; content: string }) => `${m.role.toUpperCase()}: ${m.content}`)
+      .join("\n")
+      .slice(0, 40000); // hard cap on prompt size
+
+    const sysPrompt =
+      "You are SASA's context summarizer. Produce a concise, factual, third-person summary of the ongoing conversation so future turns retain long-term memory. Preserve names, goals, decisions, stats, emotional themes, and unresolved threads. Aim for 200-400 words. Output ONLY the updated summary text, no preamble.";
+
+    try {
+      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: sysPrompt },
+            {
+              role: "user",
+              content:
+                `Existing summary (may be empty):\n${priorSummary || "(none yet)"}\n\n` +
+                `New older messages to fold into the summary:\n${transcript}\n\n` +
+                `Return the updated summary now.`,
+            },
+          ],
+          stream: false,
+        }),
+      });
+      if (!res.ok) {
+        console.error("[chats] summarizer gateway error", res.status);
+        return { updated: false };
+      }
+      const json = await res.json();
+      const newSummary: string = json?.choices?.[0]?.message?.content ?? "";
+      if (!newSummary.trim()) return { updated: false };
+
+      const { error: uErr } = await supabase
+        .from("chats")
+        .update({ summary: newSummary.slice(0, 8000), updated_at: new Date().toISOString() })
+        .eq("id", data.chatId)
+        .eq("user_id", userId);
+      if (uErr) { console.error("[chats] updateSummary save", uErr); return { updated: false }; }
+      return { updated: true };
+    } catch (e) {
+      console.error("[chats] summarizer error", e);
+      return { updated: false };
+    }
   });
 
 export const getChatMessages = createServerFn({ method: "POST" })

@@ -13,7 +13,7 @@ import type { SasaStatus } from "@/lib/sasa-prompt";
 import { useAuth } from "@/hooks/useAuth";
 import { consumePromptCredit } from "@/lib/usage.functions";
 import { getGuestUsed, incGuestUsed } from "./PromptLimitHud";
-import { addMessage, createChat, getChatMessages } from "@/lib/chats.functions";
+import { addMessage, createChat, getChatMessages, getChatSummary, updateSummaryIfNeeded } from "@/lib/chats.functions";
 import { saveStatusSnapshot } from "@/lib/status.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { SoundControls } from "./SoundControls";
@@ -71,6 +71,8 @@ export function ChatPanel({
   const [attached, setAttached] = useState<{ name: string; dataUrl: string; size: number } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Rolling summary of the current chat (older-than-last-20 messages).
+  const [chatSummary, setChatSummary] = useState<string>("");
 
   // Deliberate typing: assistant text accumulates in assistantTruthRef, but
   // we render only `revealed` chars of the last message. An interval advances
@@ -125,6 +127,16 @@ export function ChatPanel({
         toast.error("Couldn't load chat history");
       })
       .finally(() => !cancelled && setLoadingHistory(false));
+    return () => { cancelled = true; };
+  }, [user, activeChatId]);
+
+  // Load rolling summary when switching chats
+  useEffect(() => {
+    if (!user || !activeChatId) { setChatSummary(""); return; }
+    let cancelled = false;
+    getChatSummary({ data: { chatId: activeChatId } })
+      .then((r) => { if (!cancelled) setChatSummary(r.summary ?? ""); })
+      .catch(() => { if (!cancelled) setChatSummary(""); });
     return () => { cancelled = true; };
   }, [user, activeChatId]);
 
@@ -290,10 +302,18 @@ export function ChatPanel({
         const { data: { session } } = await supabase.auth.getSession();
         if (session) headers.Authorization = `Bearer ${session.access_token}`;
       }
+      // Send only the last 20 messages verbatim (plus the just-added
+      // user message, which is already the tail of `next`). Long-term
+      // memory is delivered separately via the rolling `summary`.
+      const trimmed = next.slice(-20);
       const res = await fetch("/api/chat", {
         method: "POST",
         headers,
-        body: JSON.stringify({ messages: next, latestStatus: status }),
+        body: JSON.stringify({
+          messages: trimmed,
+          latestStatus: status,
+          summary: chatSummary || undefined,
+        }),
       });
       if (!res.ok || !res.body) {
         const err = await res.json().catch(() => ({ error: "Failed" }));
@@ -345,6 +365,17 @@ export function ChatPanel({
         try {
           await addMessage({ data: { chatId, role: "assistant", content: assistant } });
           onChatsMutated?.();
+          // Refresh the rolling summary whenever a 20-message boundary
+          // is crossed. The server no-ops otherwise.
+          try {
+            const r = await updateSummaryIfNeeded({ data: { chatId } });
+            if (r.updated) {
+              const s = await getChatSummary({ data: { chatId } });
+              setChatSummary(s.summary ?? "");
+            }
+          } catch (e) {
+            console.error("summary update failed", e);
+          }
         } catch (e) {
           console.error("Failed to persist assistant message", e);
         }
@@ -394,14 +425,14 @@ export function ChatPanel({
           <SasaAvatar size={48} speaking={streaming} />
           <div>
             <div className="text-sm font-bold tracking-widest sasa-text-glow">SASA</div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+            <div className="sasa-subheading-sm">
               Self-Analysis Systems AI · {streaming ? "analysing…" : "online"}
             </div>
           </div>
         </div>
         <div className="flex gap-2 items-center">
           <SoundControls />
-          <span className="hidden md:inline text-[10px] tracking-widest text-muted-foreground italic">
+          <span className="hidden md:inline sasa-subheading-sm italic">
             fill out your daily log here! →
           </span>
           <Button size="sm" variant="outline" onClick={() => { sfxClick(); setLogOpen(true); }}>

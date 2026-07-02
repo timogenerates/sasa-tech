@@ -19,6 +19,7 @@ export type Database = {
           archived: boolean
           created_at: string
           id: string
+          summary: string
           title: string
           updated_at: string
           user_id: string
@@ -27,6 +28,7 @@ export type Database = {
           archived?: boolean
           created_at?: string
           id?: string
+          summary?: string
           title?: string
           updated_at?: string
           user_id: string
@@ -35,6 +37,7 @@ export type Database = {
           archived?: boolean
           created_at?: string
           id?: string
+          summary?: string
           title?: string
           updated_at?: string
           user_id?: string
@@ -90,6 +93,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           daily_prompts_used: number
           daily_reset_at: string
@@ -104,6 +108,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           daily_prompts_used?: number
           daily_reset_at?: string
@@ -118,6 +123,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           daily_prompts_used?: number
           daily_reset_at?: string

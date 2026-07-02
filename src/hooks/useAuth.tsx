@@ -9,6 +9,7 @@ type Profile = {
   tier: "free" | "monthly" | "prompts";
   prompts_remaining: number;
   daily_prompts_used: number;
+  avatar_url: string | null;
 };
 
 type AuthCtx = {
@@ -29,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   async function loadProfile(uid: string) {
-    const { data } = await supabase.from("profiles").select("id,email,display_name,tier,prompts_remaining,daily_prompts_used").eq("id", uid).maybeSingle();
+    const { data } = await supabase.from("profiles").select("id,email,display_name,tier,prompts_remaining,daily_prompts_used,avatar_url").eq("id", uid).maybeSingle();
     setProfile(data as Profile | null);
   }
 

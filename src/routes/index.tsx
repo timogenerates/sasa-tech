@@ -55,7 +55,7 @@ function Index() {
             <h1 className="text-base md:text-xl font-bold tracking-widest sasa-text-glow">
               SELF-ANALYSIS SYSTEMS AI <span className="opacity-50">·</span> SASA
             </h1>
-            <p className="text-[11px] md:text-xs text-muted-foreground mt-0.5 max-w-2xl leading-relaxed">
+            <p className="sasa-subheading mt-1 max-w-2xl">
               Meet SASA! Your very own system for increasing your life quality. She acts like a status window that relays back your real-life stats, in accordance with the data you feed her.
             </p>
           </div>
