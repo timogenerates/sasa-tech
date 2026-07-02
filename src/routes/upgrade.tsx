@@ -37,7 +37,7 @@ function UpgradePage() {
             <span className="sasa-mono text-xs uppercase tracking-widest">Power Up</span>
           </div>
           <h1 className="sasa-display text-3xl md:text-4xl tracking-widest sasa-text-glow">UPGRADE PLAN</h1>
-          <p className="text-sm text-muted-foreground max-w-xl leading-relaxed">
+          <p className="sasa-subheading max-w-xl">
             SASA is a tiny indie project, master. If you love what I do, becoming a Patreon supporter
             keeps the servers humming — and you get the good stuff. ♡
           </p>
@@ -54,7 +54,7 @@ function UpgradePage() {
           {[
             { name: "Free", price: "$0", perks: ["20 prompts / day", "Daily reset", "Chat history", "Status Hub (view only)"], current: profile?.tier === "free" || !profile },
             { name: "Monthly", price: "$18 / mo", perks: ["Unlimited prompts", "Status Hub trends & charts", "Character Design (3D avatar)", "Synchronization (Notion / GDrive / GitHub)", "Priority responses"], current: profile?.tier === "monthly" },
-            { name: "Prompts Pack", price: "$3 / 120 prompts", perks: ["120 prompts, no expiry", "No daily reset cap", "Status Hub trends & charts", "Character Design (3D avatar)", "Synchronization access", "Top up any time"], current: profile?.tier === "prompts" },
+            { name: "Prompts Pack", price: "$3 / 120 prompts", perks: ["120 prompts, no expiry", "No daily reset cap", "Status Hub trends & charts", "Synchronization access", "Top up any time"], current: profile?.tier === "prompts" },
           ].map((t) => (
             <div key={t.name} className={`sasa-panel rounded-md p-4 ${t.current ? "ring-2 ring-primary" : ""}`}>
               <div className="sasa-mono text-[10px] uppercase tracking-widest text-muted-foreground">{t.name}</div>
