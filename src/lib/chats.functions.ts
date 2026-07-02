@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { SASA_SYSTEM_PROMPT } from "@/lib/sasa-prompt";
 
 export type ChatRow = {
   id: string;
@@ -159,8 +158,6 @@ export const updateSummaryIfNeeded = createServerFn({ method: "POST" })
         .eq("id", data.chatId)
         .eq("user_id", userId);
       if (uErr) { console.error("[chats] updateSummary save", uErr); return { updated: false }; }
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const _ref = SASA_SYSTEM_PROMPT; // keep import used
       return { updated: true };
     } catch (e) {
       console.error("[chats] summarizer error", e);
