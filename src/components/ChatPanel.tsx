@@ -425,14 +425,14 @@ export function ChatPanel({
           <SasaAvatar size={48} speaking={streaming} />
           <div>
             <div className="text-sm font-bold tracking-widest sasa-text-glow">SASA</div>
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+            <div className="sasa-subheading-sm">
               Self-Analysis Systems AI · {streaming ? "analysing…" : "online"}
             </div>
           </div>
         </div>
         <div className="flex gap-2 items-center">
           <SoundControls />
-          <span className="hidden md:inline text-[10px] tracking-widest text-muted-foreground italic">
+          <span className="hidden md:inline sasa-subheading-sm italic">
             fill out your daily log here! →
           </span>
           <Button size="sm" variant="outline" onClick={() => { sfxClick(); setLogOpen(true); }}>
