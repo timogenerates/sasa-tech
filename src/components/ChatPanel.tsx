@@ -314,6 +314,7 @@ export function ChatPanel({
       revealedRef.current = 0;
       setMessages((p) => [...p, { role: "assistant", content: "" }]);
       startTypingTimer();
+      if (user) { refreshProfile().catch(() => {}); }
 
       let done = false;
       while (!done) {
