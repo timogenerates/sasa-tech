@@ -11,7 +11,6 @@ import { DailyLogForm, type DailyLog } from "./DailyLogForm";
 import { parseSasaMessage, extractLatestStatus } from "@/lib/sasa-parser";
 import type { SasaStatus } from "@/lib/sasa-prompt";
 import { useAuth } from "@/hooks/useAuth";
-import { consumePromptCredit } from "@/lib/usage.functions";
 import { getGuestUsed, incGuestUsed } from "./PromptLimitHud";
 import { addMessage, createChat, getChatMessages, getChatSummary, updateSummaryIfNeeded } from "@/lib/chats.functions";
 import { saveStatusSnapshot } from "@/lib/status.functions";
@@ -240,25 +239,12 @@ export function ChatPanel({
       return;
     }
 
-    // Enforce prompt limits before contacting the model
+    // Client-side quick check for guests. Authenticated users are enforced
+    // server-side inside /api/chat (single source of truth for credits).
     if (!user) {
       if (getGuestUsed() >= GUEST_LIMIT) {
         toast.error("Guest limit reached (7 prompts). Sign up for 20 free per day~");
         onRequestAuth?.("signup");
-        return;
-      }
-    } else {
-      try {
-        const r = await consumePromptCredit();
-        if (!r.ok) {
-          if (r.reason === "daily_exhausted") toast.error("Daily free limit reached. Upgrade for unlimited prompts.");
-          else if (r.reason === "prompts_exhausted") toast.error("Prompt pack empty. Top up to keep chatting.");
-          return;
-        }
-        await refreshProfile();
-      } catch (e) {
-        console.error(e);
-        toast.error("Couldn't verify your prompt credits");
         return;
       }
     }
@@ -311,7 +297,6 @@ export function ChatPanel({
         headers,
         body: JSON.stringify({
           messages: trimmed,
-          latestStatus: status,
           summary: chatSummary || undefined,
         }),
       });
@@ -329,6 +314,7 @@ export function ChatPanel({
       revealedRef.current = 0;
       setMessages((p) => [...p, { role: "assistant", content: "" }]);
       startTypingTimer();
+      if (user) { refreshProfile().catch(() => {}); }
 
       let done = false;
       while (!done) {
