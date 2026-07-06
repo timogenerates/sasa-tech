@@ -404,6 +404,60 @@ export function ChatPanel({
     send(formatted);
   }
 
+  async function generateMedia(kind: "image" | "audio", mediaPrompt: string) {
+    setInput("");
+    const label = kind === "image" ? `🖼 Sketch this: ${mediaPrompt}` : `🔊 Say this: ${mediaPrompt}`;
+    setMessages((prev) => [...prev, { role: "user", content: label }]);
+    setStreaming(true);
+    onPromptConsumed?.();
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch("/api/media", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ kind, prompt: mediaPrompt }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Failed" }));
+        toast.error(err.error ?? "SASA couldn't generate that");
+        setStreaming(false);
+        return;
+      }
+      if (kind === "image") {
+        const json = (await res.json()) as { url: string };
+        const md = `![${mediaPrompt}](${json.url})\n\n*Sketched by SASA, master~*`;
+        setMessages((prev) => [...prev, { role: "assistant", content: md }]);
+      } else {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const md = `<audio controls src="${url}"></audio>\n\n*Voiced by SASA — tap play, master~*`;
+        setMessages((prev) => [...prev, { role: "assistant", content: md }]);
+      }
+      if (user) refreshProfile().catch(() => {});
+    } catch (e) {
+      console.error("media gen failed", e);
+      toast.error("Media generation failed");
+    } finally {
+      setStreaming(false);
+    }
+  }
+
+  function triggerMediaFromInput(kind: "image" | "audio") {
+    const p = input.trim();
+    if (!p) {
+      toast.info(kind === "image" ? "Type what SASA should sketch first, master~" : "Type what SASA should say first, master~");
+      return;
+    }
+    if (!user) {
+      toast.error("Sign up to have SASA sketch or speak for you~");
+      onRequestAuth?.("signup");
+      return;
+    }
+    generateMedia(kind, p);
+  }
+
   function reset() {
     if (user) {
       onActiveChatChange?.(null);
