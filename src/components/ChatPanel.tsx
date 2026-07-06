@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { AnimatePresence, motion } from "framer-motion";
-import { Send, BookOpenCheck, RefreshCw, Mic, MicOff, Paperclip, X } from "lucide-react";
+import { Send, BookOpenCheck, RefreshCw, Mic, MicOff, Paperclip, X, ImagePlus, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -225,6 +225,20 @@ export function ChatPanel({
     const trimmed = text.trim();
     if ((!trimmed && !attached) || streaming) return;
     sfxClick();
+
+    // Slash-command routing to /api/media (image + voice generation).
+    const mediaMatch = trimmed.match(/^\/(image|voice)\s+([\s\S]+)$/i);
+    if (mediaMatch) {
+      const kind = mediaMatch[1].toLowerCase() === "voice" ? "audio" : "image";
+      const mediaPrompt = mediaMatch[2].trim();
+      if (!user) {
+        toast.error("Sign up to have SASA sketch or speak for you~");
+        onRequestAuth?.("signup");
+        return;
+      }
+      await generateMedia(kind, mediaPrompt);
+      return;
+    }
 
     // Auto-open the Daily Log dialog if the user is asking to fill it in,
     // instead of routing the request through chat. SASA-side seamless UX.
