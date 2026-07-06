@@ -152,15 +152,21 @@
       radial-gradient(ellipse at top, oklch(0.22 0.08 260 / 0.6), transparent 60%),
       radial-gradient(ellipse at bottom right, oklch(0.2 0.1 300 / 0.4), transparent 50%);
     background-attachment: fixed;
-    font-family: 'Rajdhani', 'Inter', system-ui, sans-serif;
-    letter-spacing: 0.01em;
+    font-family: 'Exo 2', 'Chakra Petch', system-ui, sans-serif;
+    letter-spacing: 0.012em;
   }
   h1, h2, h3, .sasa-display {
-    font-family: 'Orbitron', 'Rajdhani', sans-serif;
-    letter-spacing: 0.08em;
+    font-family: 'Chakra Petch', 'Exo 2', sans-serif;
+    letter-spacing: 0.09em;
+    font-weight: 700;
   }
   .sasa-mono {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-family: 'Share Tech Mono', ui-monospace, monospace;
+    letter-spacing: 0.02em;
+  }
+  .sasa-wordmark {
+    font-family: 'Michroma', 'Chakra Petch', sans-serif;
+    letter-spacing: 0.14em;
   }
 }
 
@@ -257,7 +263,7 @@
    * ultra-thin muted text so it reads comfortably.
    */
   .sasa-subheading {
-    font-family: 'Space Grotesk', 'Rajdhani', 'Inter', system-ui, sans-serif;
+    font-family: 'Exo 2', 'Chakra Petch', system-ui, sans-serif;
     font-weight: 500;
     font-size: 0.9rem;
     line-height: 1.45;
@@ -265,11 +271,28 @@
     color: oklch(0.86 0.03 235);
   }
   .sasa-subheading-sm {
-    font-family: 'Space Grotesk', 'Rajdhani', 'Inter', system-ui, sans-serif;
+    font-family: 'Exo 2', 'Chakra Petch', system-ui, sans-serif;
     font-weight: 500;
     font-size: 0.8rem;
     line-height: 1.4;
     letter-spacing: 0.01em;
     color: oklch(0.82 0.03 235);
+  }
+
+  /* Neon-cyan themed scrollbar — used by the lifetime stats panel so it
+   * feels visually distinct from the chat column's default scrollbar. */
+  .sasa-scroll-neon {
+    scrollbar-width: thin;
+    scrollbar-color: var(--sasa-cyan) transparent;
+    scrollbar-gutter: stable;
+  }
+  .sasa-scroll-neon::-webkit-scrollbar { width: 8px; }
+  .sasa-scroll-neon::-webkit-scrollbar-track {
+    background: oklch(0.14 0.04 265 / 0.4);
+  }
+  .sasa-scroll-neon::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--sasa-cyan), var(--sasa-violet));
+    border-radius: 6px;
+    box-shadow: 0 0 6px var(--sasa-cyan);
   }
 }
