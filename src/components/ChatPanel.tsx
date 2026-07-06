@@ -432,7 +432,7 @@ export function ChatPanel({
       } else {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
-        const md = `<audio controls src="${url}"></audio>\n\n*Voiced by SASA — tap play, master~*`;
+        const md = `[[audio:${url}]]\n\n*Voiced by SASA — tap play, master~*`;
         setMessages((prev) => [...prev, { role: "assistant", content: md }]);
       }
       if (user) refreshProfile().catch(() => {});
@@ -565,6 +565,16 @@ export function ChatPanel({
             title="Attach file" onClick={() => { sfxClick(); fileRef.current?.click(); }}>
             <Paperclip size={14} />
           </Button>
+          <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0"
+            title="Generate image from your prompt (1 credit)"
+            onClick={() => { sfxClick(); triggerMediaFromInput("image"); }}>
+            <ImagePlus size={14} />
+          </Button>
+          <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0"
+            title="Voice out your prompt (1 credit)"
+            onClick={() => { sfxClick(); triggerMediaFromInput("audio"); }}>
+            <Volume2 size={14} />
+          </Button>
           {voice.supported && (
             <Button type="button" size="sm" variant={voice.listening ? "default" : "ghost"}
               className="h-9 w-9 p-0"
@@ -592,6 +602,25 @@ export function ChatPanel({
 function MessageBubble({ role, content }: { role: "user" | "assistant"; content: string }) {
   const isUser = role === "user";
   const segs = isUser ? [{ kind: "text" as const, text: content }] : parseSasaMessage(content);
+  const renderText = (text: string, key: number) => {
+    const audioMatch = text.match(/\[\[audio:([^\]]+)\]\]/);
+    if (audioMatch) {
+      const before = text.slice(0, audioMatch.index ?? 0);
+      const after = text.slice((audioMatch.index ?? 0) + audioMatch[0].length);
+      return (
+        <div key={key} className="sasa-markdown text-sm leading-relaxed space-y-2">
+          {before.trim() && <ReactMarkdown>{before}</ReactMarkdown>}
+          <audio controls src={audioMatch[1]} className="w-full" />
+          {after.trim() && <ReactMarkdown>{after}</ReactMarkdown>}
+        </div>
+      );
+    }
+    return (
+      <div key={key} className="sasa-markdown text-sm leading-relaxed">
+        <ReactMarkdown>{text}</ReactMarkdown>
+      </div>
+    );
+  };
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -613,11 +642,7 @@ function MessageBubble({ role, content }: { role: "user" | "assistant"; content:
           {segs.map((s, i) =>
             s.kind === "status" ? (
               <StatusWindow key={i} data={s.status} />
-            ) : (
-              <div key={i} className="sasa-markdown text-sm leading-relaxed">
-                <ReactMarkdown>{s.text}</ReactMarkdown>
-              </div>
-            ),
+            ) : renderText(s.text, i),
           )}
         </div>
       </div>
