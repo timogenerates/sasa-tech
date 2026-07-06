@@ -10,6 +10,7 @@ import { AuthDialog } from "@/components/AuthDialog";
 import { PromptLimitHud } from "@/components/PromptLimitHud";
 import { StatusHub } from "@/components/StatusHub";
 import { FreeResetCountdown } from "@/components/FreeResetCountdown";
+import { LifetimeStatsPanel } from "@/components/LifetimeStatsPanel";
 import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/")({
@@ -74,15 +75,23 @@ function Index() {
         </div>
       </header>
       <main className="flex-1 max-w-5xl w-full mx-auto px-2 md:px-6 py-4">
-        <div className="sasa-panel sasa-frame-corner rounded-md h-[calc(100vh-180px)] min-h-[500px] overflow-hidden">
-          <ChatPanel
-            onPromptConsumed={() => setUsagePulse((p) => p + 1)}
-            onRequestAuth={(mode) => { setAuthMode(mode); setAuthOpen(true); }}
-            activeChatId={activeChatId}
-            onActiveChatChange={setActiveChatId}
-            onChatsMutated={() => setChatsRefreshKey((k) => k + 1)}
-            onStatusSaved={() => setStatusRefreshKey((k) => k + 1)}
-          />
+        <div className="grid gap-4 h-[calc(100vh-180px)] min-h-[500px] md:grid-cols-[minmax(0,1fr)_340px] lg:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="sasa-panel sasa-frame-corner rounded-md overflow-hidden min-w-0 h-full">
+            <ChatPanel
+              onPromptConsumed={() => setUsagePulse((p) => p + 1)}
+              onRequestAuth={(mode) => { setAuthMode(mode); setAuthOpen(true); }}
+              activeChatId={activeChatId}
+              onActiveChatChange={setActiveChatId}
+              onChatsMutated={() => setChatsRefreshKey((k) => k + 1)}
+              onStatusSaved={() => setStatusRefreshKey((k) => k + 1)}
+            />
+          </div>
+          <div className="hidden md:block h-full min-w-0">
+            <LifetimeStatsPanel
+              refreshKey={statusRefreshKey}
+              onRequestAuth={(mode) => { setAuthMode(mode); setAuthOpen(true); }}
+            />
+          </div>
         </div>
       </main>
       <SasaSidebar
