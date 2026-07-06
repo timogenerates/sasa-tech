@@ -15,6 +15,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as CreatorDashboardRouteImport } from './routes/creator-dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiMediaRouteImport } from './routes/api/media'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 
 const UpgradeRoute = UpgradeRouteImport.update({
@@ -47,6 +48,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMediaRoute = ApiMediaRouteImport.update({
+  id: '/api/media',
+  path: '/api/media',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/sync': typeof SyncRoute
   '/upgrade': typeof UpgradeRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/media': typeof ApiMediaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/sync': typeof SyncRoute
   '/upgrade': typeof UpgradeRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/media': typeof ApiMediaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   '/sync': typeof SyncRoute
   '/upgrade': typeof UpgradeRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/media': typeof ApiMediaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +100,7 @@ export interface FileRouteTypes {
     | '/sync'
     | '/upgrade'
     | '/api/chat'
+    | '/api/media'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +110,7 @@ export interface FileRouteTypes {
     | '/sync'
     | '/upgrade'
     | '/api/chat'
+    | '/api/media'
   id:
     | '__root__'
     | '/'
@@ -109,6 +120,7 @@ export interface FileRouteTypes {
     | '/sync'
     | '/upgrade'
     | '/api/chat'
+    | '/api/media'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -119,6 +131,7 @@ export interface RootRouteChildren {
   SyncRoute: typeof SyncRoute
   UpgradeRoute: typeof UpgradeRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiMediaRoute: typeof ApiMediaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -165,6 +178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/media': {
+      id: '/api/media'
+      path: '/api/media'
+      fullPath: '/api/media'
+      preLoaderRoute: typeof ApiMediaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat': {
       id: '/api/chat'
       path: '/api/chat'
@@ -183,17 +203,8 @@ const rootRouteChildren: RootRouteChildren = {
   SyncRoute: SyncRoute,
   UpgradeRoute: UpgradeRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiMediaRoute: ApiMediaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

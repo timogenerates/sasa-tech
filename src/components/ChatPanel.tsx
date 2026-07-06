@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { AnimatePresence, motion } from "framer-motion";
-import { Send, BookOpenCheck, RefreshCw, Mic, MicOff, Paperclip, X } from "lucide-react";
+import { Send, BookOpenCheck, RefreshCw, Mic, MicOff, Paperclip, X, ImagePlus, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -226,6 +226,20 @@ export function ChatPanel({
     if ((!trimmed && !attached) || streaming) return;
     sfxClick();
 
+    // Slash-command routing to /api/media (image + voice generation).
+    const mediaMatch = trimmed.match(/^\/(image|voice)\s+([\s\S]+)$/i);
+    if (mediaMatch) {
+      const kind = mediaMatch[1].toLowerCase() === "voice" ? "audio" : "image";
+      const mediaPrompt = mediaMatch[2].trim();
+      if (!user) {
+        toast.error("Sign up to have SASA sketch or speak for you~");
+        onRequestAuth?.("signup");
+        return;
+      }
+      await generateMedia(kind, mediaPrompt);
+      return;
+    }
+
     // Auto-open the Daily Log dialog if the user is asking to fill it in,
     // instead of routing the request through chat. SASA-side seamless UX.
     if (
@@ -390,6 +404,60 @@ export function ChatPanel({
     send(formatted);
   }
 
+  async function generateMedia(kind: "image" | "audio", mediaPrompt: string) {
+    setInput("");
+    const label = kind === "image" ? `🖼 Sketch this: ${mediaPrompt}` : `🔊 Say this: ${mediaPrompt}`;
+    setMessages((prev) => [...prev, { role: "user", content: label }]);
+    setStreaming(true);
+    onPromptConsumed?.();
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch("/api/media", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ kind, prompt: mediaPrompt }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Failed" }));
+        toast.error(err.error ?? "SASA couldn't generate that");
+        setStreaming(false);
+        return;
+      }
+      if (kind === "image") {
+        const json = (await res.json()) as { url: string };
+        const md = `![${mediaPrompt}](${json.url})\n\n*Sketched by SASA, master~*`;
+        setMessages((prev) => [...prev, { role: "assistant", content: md }]);
+      } else {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const md = `[[audio:${url}]]\n\n*Voiced by SASA — tap play, master~*`;
+        setMessages((prev) => [...prev, { role: "assistant", content: md }]);
+      }
+      if (user) refreshProfile().catch(() => {});
+    } catch (e) {
+      console.error("media gen failed", e);
+      toast.error("Media generation failed");
+    } finally {
+      setStreaming(false);
+    }
+  }
+
+  function triggerMediaFromInput(kind: "image" | "audio") {
+    const p = input.trim();
+    if (!p) {
+      toast.info(kind === "image" ? "Type what SASA should sketch first, master~" : "Type what SASA should say first, master~");
+      return;
+    }
+    if (!user) {
+      toast.error("Sign up to have SASA sketch or speak for you~");
+      onRequestAuth?.("signup");
+      return;
+    }
+    generateMedia(kind, p);
+  }
+
   function reset() {
     if (user) {
       onActiveChatChange?.(null);
@@ -497,6 +565,16 @@ export function ChatPanel({
             title="Attach file" onClick={() => { sfxClick(); fileRef.current?.click(); }}>
             <Paperclip size={14} />
           </Button>
+          <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0"
+            title="Generate image from your prompt (1 credit)"
+            onClick={() => { sfxClick(); triggerMediaFromInput("image"); }}>
+            <ImagePlus size={14} />
+          </Button>
+          <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0"
+            title="Voice out your prompt (1 credit)"
+            onClick={() => { sfxClick(); triggerMediaFromInput("audio"); }}>
+            <Volume2 size={14} />
+          </Button>
           {voice.supported && (
             <Button type="button" size="sm" variant={voice.listening ? "default" : "ghost"}
               className="h-9 w-9 p-0"
@@ -524,6 +602,25 @@ export function ChatPanel({
 function MessageBubble({ role, content }: { role: "user" | "assistant"; content: string }) {
   const isUser = role === "user";
   const segs = isUser ? [{ kind: "text" as const, text: content }] : parseSasaMessage(content);
+  const renderText = (text: string, key: number) => {
+    const audioMatch = text.match(/\[\[audio:([^\]]+)\]\]/);
+    if (audioMatch) {
+      const before = text.slice(0, audioMatch.index ?? 0);
+      const after = text.slice((audioMatch.index ?? 0) + audioMatch[0].length);
+      return (
+        <div key={key} className="sasa-markdown text-sm leading-relaxed space-y-2">
+          {before.trim() && <ReactMarkdown>{before}</ReactMarkdown>}
+          <audio controls src={audioMatch[1]} className="w-full" />
+          {after.trim() && <ReactMarkdown>{after}</ReactMarkdown>}
+        </div>
+      );
+    }
+    return (
+      <div key={key} className="sasa-markdown text-sm leading-relaxed">
+        <ReactMarkdown>{text}</ReactMarkdown>
+      </div>
+    );
+  };
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -545,11 +642,7 @@ function MessageBubble({ role, content }: { role: "user" | "assistant"; content:
           {segs.map((s, i) =>
             s.kind === "status" ? (
               <StatusWindow key={i} data={s.status} />
-            ) : (
-              <div key={i} className="sasa-markdown text-sm leading-relaxed">
-                <ReactMarkdown>{s.text}</ReactMarkdown>
-              </div>
-            ),
+            ) : renderText(s.text, i),
           )}
         </div>
       </div>
