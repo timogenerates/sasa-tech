@@ -60,7 +60,10 @@ function aggregate(rows: SnapshotRow[]): Aggregate[] {
       count: e.scores.length,
     });
   }
-  return out.sort((a, b) => b.latest - a.latest);
+  // "Interest" ranking — categories the user talks about most (highest count),
+  // tiebroken by latest score. This surfaces the 5 stats SASA has been
+  // reading on them most recently and often.
+  return out.sort((a, b) => (b.count - a.count) || (b.latest - a.latest));
 }
 
 function TrendGlyph({ trend }: { trend: Aggregate["trend"] }) {
@@ -91,6 +94,8 @@ export function LifetimeStatsPanel({ refreshKey = 0, onRequestAuth }: Props) {
   }, [user, refreshKey]);
 
   const stats = useMemo(() => (rows ? aggregate(rows) : []), [rows]);
+  const topStats = useMemo(() => stats.slice(0, 5), [stats]);
+  const totalTracked = stats.length;
   const latestSnapshot = rows?.[0] ?? null;
   const overall = latestSnapshot?.overall ?? null;
   const status = latestSnapshot?.status ?? null;
@@ -177,7 +182,9 @@ export function LifetimeStatsPanel({ refreshKey = 0, onRequestAuth }: Props) {
           )}
         </div>
         <div className="mt-2 text-[10px] tracking-widest opacity-60">
-          {rows ? `${rows.length} snapshot${rows.length === 1 ? "" : "s"} · ${stats.length} tracked stat${stats.length === 1 ? "" : "s"}` : ""}
+          {rows
+            ? `TOP 5 · ${totalTracked} tracked · ${rows.length} snapshot${rows.length === 1 ? "" : "s"}`
+            : ""}
         </div>
       </div>
 
@@ -185,12 +192,12 @@ export function LifetimeStatsPanel({ refreshKey = 0, onRequestAuth }: Props) {
         {loading && (
           <div className="text-xs text-muted-foreground py-4 text-center">Loading stats…</div>
         )}
-        {!loading && stats.length === 0 && (
+        {!loading && topStats.length === 0 && (
           <div className="text-xs text-muted-foreground py-6 text-center px-2">
             No readings yet, master~ Chat with SASA to generate your first stat window.
           </div>
         )}
-        {stats.map((s, i) => {
+        {topStats.map((s, i) => {
           const barAccent =
             s.latest >= 75 ? "oklch(0.78 0.2 145)" :
             s.latest >= 50 ? "oklch(0.82 0.18 210)" :
