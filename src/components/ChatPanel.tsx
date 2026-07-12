@@ -111,12 +111,12 @@ export function ChatPanel({
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Msg[];
-        setMessages(Array.isArray(parsed) && parsed.length ? parsed : [GREETING]);
-      } else setMessages([GREETING]);
+        setMessages(Array.isArray(parsed) && parsed.length ? parsed : [pickGreeting()]);
+      } else setMessages([pickGreeting()]);
       const s = localStorage.getItem(STATUS_KEY);
       if (s) setStatus(JSON.parse(s));
     } catch {
-      setMessages([GREETING]);
+      setMessages([pickGreeting()]);
     }
   }, [user]);
 
@@ -125,7 +125,7 @@ export function ChatPanel({
     if (!user) return;
     let cancelled = false;
     if (!activeChatId) {
-      setMessages([GREETING]);
+      setMessages([pickGreeting()]);
       setStatus(null);
       return;
     }
@@ -134,7 +134,7 @@ export function ChatPanel({
       .then((rows) => {
         if (cancelled) return;
         const loaded: Msg[] = rows.map((r) => ({ role: r.role, content: r.content }));
-        setMessages(loaded.length ? loaded : [GREETING]);
+        setMessages(loaded.length ? loaded : [pickGreeting()]);
         const latest = [...loaded].reverse().find((m) => m.role === "assistant");
         if (latest) {
           const s = extractLatestStatus(latest.content);
@@ -192,7 +192,7 @@ export function ChatPanel({
         }
         return copy;
       });
-      if ((blipCounter++ % 2) === 0) sfxKey();
+      if ((blipCounter++ % 2) === 0) sfxType();
     }, tickMs);
   }
   function stopTypingTimer() {
@@ -481,13 +481,13 @@ export function ChatPanel({
   function reset() {
     if (user) {
       onActiveChatChange?.(null);
-      setMessages([GREETING]);
+      setMessages([pickGreeting()]);
       setStatus(null);
     } else {
       if (!confirm("Clear chat + status with SASA?")) return;
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(STATUS_KEY);
-      setMessages([GREETING]);
+      setMessages([pickGreeting()]);
       setStatus(null);
     }
   }
