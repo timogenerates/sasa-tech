@@ -16,8 +16,9 @@ import { addMessage, createChat, getChatMessages, getChatSummary, updateSummaryI
 import { saveStatusSnapshot } from "@/lib/status.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { SoundControls } from "./SoundControls";
-import { sfxClick, sfxKey } from "@/lib/sasa-sfx";
+import { sfxClick, sfxType } from "@/lib/sasa-sfx";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
+import { SASA_MODELS, SASA_DEFAULT_MODEL, getModel, suggestModelFor } from "@/lib/sasa-models";
 
 const GUEST_LIMIT = 7;
 
@@ -29,19 +30,38 @@ const UPLOAD_LIMITS: Record<"guest" | "free" | "monthly" | "prompts", number> = 
   prompts: 150 * 1024 * 1024,
 };
 
-// Deliberate typing reveal speed (characters / second)
-const TYPING_CPS = 55;
+// Deliberate typing reveal speed (characters / second). Slow enough that the
+// illusion is visible even when the upstream stream finishes fast.
+const TYPING_CPS = 42;
+
+const MODEL_LS_KEY = "sasa:model:v1";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
 const STORAGE_KEY = "sasa:chat:v1";
 const STATUS_KEY = "sasa:status:v1";
 
-const GREETING: Msg = {
-  role: "assistant",
-  content:
-    "Hello, master~ ✨ SASA online and *delighted* to see you.\n\nI'm your Self-Analysis Systems AI — a floating status window for your real life. Talk to me about your day, your goals, what's stressing you, what's going well. The more you give me, the sharper your stats get.\n\nWant to start with a quick **daily log**, or just chat? I'll be reading between the lines either way. 😉",
-};
+// Rotating short greetings — SASA opens differently every refresh so it
+// never feels like a canned template. Kept to 1–2 sentences.
+const GREETING_POOL: string[] = [
+  "SASA online, master~ ✨ what are we reading today?",
+  "Back so soon? 😌 drop me anything — I'll turn it into stats.",
+  "System boot complete. Talk to me — sleep, work, drama, wins.",
+  "Ping received 📡 tell me one thing that happened since I saw you.",
+  "Standing by, my liege. Log, vent, or brag — I'll take notes either way.",
+  "Hey you 👀 quick check-in: how's the body running today?",
+  "*stretches* ready. What's the mission?",
+  "SASA here — one honest sentence about your day and I'll take it from there.",
+  "Signal locked 🔒 what should I read on you today?",
+  "Awake and nosy as ever. Give me a thought.",
+  "Hi again. Fast update or long unload — your call.",
+  "Online. No fluff today — what's the headline?",
+];
+
+function pickGreeting(): Msg {
+  const idx = Math.floor(Math.random() * GREETING_POOL.length);
+  return { role: "assistant", content: GREETING_POOL[idx] };
+}
 
 type ChatPanelProps = {
   onPromptConsumed?: () => void;
