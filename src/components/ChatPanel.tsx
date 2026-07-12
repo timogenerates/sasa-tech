@@ -441,6 +441,7 @@ export function ChatPanel({
       console.error(e);
       toast.error("Connection to SASA failed");
     } finally {
+      streamActiveRef.current = false;
       stopTypingTimer();
       setStreaming(false);
     }
