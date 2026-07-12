@@ -209,17 +209,16 @@ export function ChatPanel({
   function stopTypingTimer() {
     if (typingTimerRef.current) { clearInterval(typingTimerRef.current); typingTimerRef.current = null; }
   }
-  function flushTyping() {
-    revealedRef.current = assistantTruthRef.current.length;
-    const truth = assistantTruthRef.current;
-    setMessages((prev) => {
-      const copy = [...prev];
-      if (copy.length && copy[copy.length - 1].role === "assistant") {
-        copy[copy.length - 1] = { role: "assistant", content: truth };
-      }
-      return copy;
+  /** Wait for the typing reveal to catch up with the full streamed text. */
+  function awaitRevealDone(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const iv = setInterval(() => {
+        if (revealedRef.current >= assistantTruthRef.current.length) {
+          clearInterval(iv);
+          resolve();
+        }
+      }, 40);
     });
-    stopTypingTimer();
   }
 
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
