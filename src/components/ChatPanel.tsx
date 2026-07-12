@@ -88,6 +88,10 @@ export function ChatPanel({
   const [logOpen, setLogOpen] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [attached, setAttached] = useState<{ name: string; dataUrl: string; size: number } | null>(null);
+  const [model, setModel] = useState<string>(() => {
+    if (typeof window === "undefined") return SASA_DEFAULT_MODEL;
+    return localStorage.getItem(MODEL_LS_KEY) ?? SASA_DEFAULT_MODEL;
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   // Rolling summary of the current chat (older-than-last-20 messages).
@@ -99,6 +103,13 @@ export function ChatPanel({
   const assistantTruthRef = useRef<string>("");
   const revealedRef = useRef<number>(0);
   const typingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Set true while the upstream reader is still emitting deltas. The typing
+  // interval keeps running until it catches up AND this ref is false.
+  const streamActiveRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    try { localStorage.setItem(MODEL_LS_KEY, model); } catch { /* ignore */ }
+  }, [model]);
 
   const voice = useVoiceInput((finalText) => {
     setInput((prev) => (prev ? prev + " " : "") + finalText);
