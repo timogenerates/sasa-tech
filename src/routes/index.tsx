@@ -75,8 +75,8 @@ function Index() {
         </div>
       </header>
       <main className="flex-1 max-w-5xl w-full mx-auto px-2 md:px-6 py-4">
-        <div className="grid gap-4 h-[calc(100vh-180px)] min-h-[500px] md:grid-cols-[minmax(0,1fr)_340px] lg:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="sasa-panel sasa-frame-corner rounded-md overflow-hidden min-w-0 h-full">
+        <div className="grid gap-4 lg:h-[calc(100vh-180px)] lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
+          <div className="sasa-panel sasa-frame-corner rounded-md overflow-hidden min-w-0 h-[70vh] lg:h-full">
             <ChatPanel
               onPromptConsumed={() => setUsagePulse((p) => p + 1)}
               onRequestAuth={(mode) => { setAuthMode(mode); setAuthOpen(true); }}
@@ -86,7 +86,12 @@ function Index() {
               onStatusSaved={() => setStatusRefreshKey((k) => k + 1)}
             />
           </div>
-          <div className="hidden md:block h-full min-w-0">
+          {/*
+            Below `lg` the panel stacks under the chat (mobile + tablet stay
+            uncramped). At `lg+` it becomes a sticky side rail that follows
+            the viewport as the user scrolls the chat.
+          */}
+          <div className="min-w-0 h-[60vh] lg:h-full lg:sticky lg:top-4 lg:self-start">
             <LifetimeStatsPanel
               refreshKey={statusRefreshKey}
               onRequestAuth={(mode) => { setAuthMode(mode); setAuthOpen(true); }}
