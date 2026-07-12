@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { SASA_SYSTEM_PROMPT } from "@/lib/sasa-prompt";
+import { SASA_ALLOWED_MODEL_IDS, SASA_DEFAULT_MODEL } from "@/lib/sasa-models";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -11,12 +12,13 @@ const bodySchema = z.object({
     .array(
       z.object({
         role: z.enum(["user", "assistant"]),
-        content: z.string().min(1).max(200000),
+        content: z.string().min(1).max(1_000_000),
       }),
     )
     .min(1)
-    .max(50),
+    .max(60),
   summary: z.string().max(8000).optional(),
+  model: z.string().max(120).optional(),
 });
 
 function jsonErr(status: number, error: string) {
@@ -36,7 +38,11 @@ export const Route = createFileRoute("/api/chat")({
           if (!parsed.success) {
             return jsonErr(400, "Invalid payload");
           }
-          const { messages, summary } = parsed.data;
+          const { messages, summary, model: requestedModel } = parsed.data;
+          const model =
+            requestedModel && SASA_ALLOWED_MODEL_IDS.has(requestedModel)
+              ? requestedModel
+              : SASA_DEFAULT_MODEL;
           const key = process.env.LOVABLE_API_KEY;
           if (!key) {
             return jsonErr(500, "AI is temporarily unavailable");
@@ -105,7 +111,7 @@ export const Route = createFileRoute("/api/chat")({
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "google/gemini-3-pro-preview",
+              model,
               messages: [sys, ...messages],
               stream: true,
             }),

@@ -16,8 +16,9 @@ import { addMessage, createChat, getChatMessages, getChatSummary, updateSummaryI
 import { saveStatusSnapshot } from "@/lib/status.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { SoundControls } from "./SoundControls";
-import { sfxClick, sfxKey } from "@/lib/sasa-sfx";
+import { sfxClick, sfxType } from "@/lib/sasa-sfx";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
+import { SASA_MODELS, SASA_DEFAULT_MODEL, getModel, suggestModelFor } from "@/lib/sasa-models";
 
 const GUEST_LIMIT = 7;
 
@@ -29,19 +30,38 @@ const UPLOAD_LIMITS: Record<"guest" | "free" | "monthly" | "prompts", number> = 
   prompts: 150 * 1024 * 1024,
 };
 
-// Deliberate typing reveal speed (characters / second)
-const TYPING_CPS = 55;
+// Deliberate typing reveal speed (characters / second). Slow enough that the
+// illusion is visible even when the upstream stream finishes fast.
+const TYPING_CPS = 42;
+
+const MODEL_LS_KEY = "sasa:model:v1";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
 const STORAGE_KEY = "sasa:chat:v1";
 const STATUS_KEY = "sasa:status:v1";
 
-const GREETING: Msg = {
-  role: "assistant",
-  content:
-    "Hello, master~ ✨ SASA online and *delighted* to see you.\n\nI'm your Self-Analysis Systems AI — a floating status window for your real life. Talk to me about your day, your goals, what's stressing you, what's going well. The more you give me, the sharper your stats get.\n\nWant to start with a quick **daily log**, or just chat? I'll be reading between the lines either way. 😉",
-};
+// Rotating short greetings — SASA opens differently every refresh so it
+// never feels like a canned template. Kept to 1–2 sentences.
+const GREETING_POOL: string[] = [
+  "SASA online, master~ ✨ what are we reading today?",
+  "Back so soon? 😌 drop me anything — I'll turn it into stats.",
+  "System boot complete. Talk to me — sleep, work, drama, wins.",
+  "Ping received 📡 tell me one thing that happened since I saw you.",
+  "Standing by, my liege. Log, vent, or brag — I'll take notes either way.",
+  "Hey you 👀 quick check-in: how's the body running today?",
+  "*stretches* ready. What's the mission?",
+  "SASA here — one honest sentence about your day and I'll take it from there.",
+  "Signal locked 🔒 what should I read on you today?",
+  "Awake and nosy as ever. Give me a thought.",
+  "Hi again. Fast update or long unload — your call.",
+  "Online. No fluff today — what's the headline?",
+];
+
+function pickGreeting(): Msg {
+  const idx = Math.floor(Math.random() * GREETING_POOL.length);
+  return { role: "assistant", content: GREETING_POOL[idx] };
+}
 
 type ChatPanelProps = {
   onPromptConsumed?: () => void;
@@ -68,6 +88,10 @@ export function ChatPanel({
   const [logOpen, setLogOpen] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [attached, setAttached] = useState<{ name: string; dataUrl: string; size: number } | null>(null);
+  const [model, setModel] = useState<string>(() => {
+    if (typeof window === "undefined") return SASA_DEFAULT_MODEL;
+    return localStorage.getItem(MODEL_LS_KEY) ?? SASA_DEFAULT_MODEL;
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   // Rolling summary of the current chat (older-than-last-20 messages).
@@ -79,6 +103,13 @@ export function ChatPanel({
   const assistantTruthRef = useRef<string>("");
   const revealedRef = useRef<number>(0);
   const typingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Set true while the upstream reader is still emitting deltas. The typing
+  // interval keeps running until it catches up AND this ref is false.
+  const streamActiveRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    try { localStorage.setItem(MODEL_LS_KEY, model); } catch { /* ignore */ }
+  }, [model]);
 
   const voice = useVoiceInput((finalText) => {
     setInput((prev) => (prev ? prev + " " : "") + finalText);
@@ -91,12 +122,12 @@ export function ChatPanel({
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Msg[];
-        setMessages(Array.isArray(parsed) && parsed.length ? parsed : [GREETING]);
-      } else setMessages([GREETING]);
+        setMessages(Array.isArray(parsed) && parsed.length ? parsed : [pickGreeting()]);
+      } else setMessages([pickGreeting()]);
       const s = localStorage.getItem(STATUS_KEY);
       if (s) setStatus(JSON.parse(s));
     } catch {
-      setMessages([GREETING]);
+      setMessages([pickGreeting()]);
     }
   }, [user]);
 
@@ -105,7 +136,7 @@ export function ChatPanel({
     if (!user) return;
     let cancelled = false;
     if (!activeChatId) {
-      setMessages([GREETING]);
+      setMessages([pickGreeting()]);
       setStatus(null);
       return;
     }
@@ -114,7 +145,7 @@ export function ChatPanel({
       .then((rows) => {
         if (cancelled) return;
         const loaded: Msg[] = rows.map((r) => ({ role: r.role, content: r.content }));
-        setMessages(loaded.length ? loaded : [GREETING]);
+        setMessages(loaded.length ? loaded : [pickGreeting()]);
         const latest = [...loaded].reverse().find((m) => m.role === "assistant");
         if (latest) {
           const s = extractLatestStatus(latest.content);
@@ -172,23 +203,22 @@ export function ChatPanel({
         }
         return copy;
       });
-      if ((blipCounter++ % 2) === 0) sfxKey();
+      if ((blipCounter++ % 2) === 0) sfxType();
     }, tickMs);
   }
   function stopTypingTimer() {
     if (typingTimerRef.current) { clearInterval(typingTimerRef.current); typingTimerRef.current = null; }
   }
-  function flushTyping() {
-    revealedRef.current = assistantTruthRef.current.length;
-    const truth = assistantTruthRef.current;
-    setMessages((prev) => {
-      const copy = [...prev];
-      if (copy.length && copy[copy.length - 1].role === "assistant") {
-        copy[copy.length - 1] = { role: "assistant", content: truth };
-      }
-      return copy;
+  /** Wait for the typing reveal to catch up with the full streamed text. */
+  function awaitRevealDone(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const iv = setInterval(() => {
+        if (revealedRef.current >= assistantTruthRef.current.length) {
+          clearInterval(iv);
+          resolve();
+        }
+      }, 40);
     });
-    stopTypingTimer();
   }
 
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -278,6 +308,19 @@ export function ChatPanel({
     if (!user) incGuestUsed();
     onPromptConsumed?.();
 
+    // Let SASA "read" the prompt and offer a deeper model when it looks heavy.
+    // Only prompts, never auto-downgrades. User confirms explicitly.
+    let effectiveModel = model;
+    try {
+      const s = suggestModelFor(trimmed, model);
+      if (s) {
+        const ok = window.confirm(
+          `SASA: this prompt is ${s.reason}\n\nSwitch to ${getModel(s.suggested).label} for this reply?`,
+        );
+        if (ok) effectiveModel = s.suggested;
+      }
+    } catch { /* ignore */ }
+
     // Ensure a chat row exists for logged-in users; persist the user message
     let chatId = activeChatId;
     if (user) {
@@ -312,6 +355,7 @@ export function ChatPanel({
         body: JSON.stringify({
           messages: trimmed,
           summary: chatSummary || undefined,
+          model: effectiveModel,
         }),
       });
       if (!res.ok || !res.body) {
@@ -327,6 +371,7 @@ export function ChatPanel({
       assistantTruthRef.current = "";
       revealedRef.current = 0;
       setMessages((p) => [...p, { role: "assistant", content: "" }]);
+      streamActiveRef.current = true;
       startTypingTimer();
       if (user) { refreshProfile().catch(() => {}); }
 
@@ -356,7 +401,10 @@ export function ChatPanel({
         }
       }
 
-      flushTyping();
+      // Upstream is done; let the typing illusion catch up before finalising.
+      streamActiveRef.current = false;
+      await awaitRevealDone();
+      stopTypingTimer();
       const assistant = assistantTruthRef.current;
       const latest = extractLatestStatus(assistant);
       if (latest) setStatus(latest);
@@ -393,6 +441,7 @@ export function ChatPanel({
       console.error(e);
       toast.error("Connection to SASA failed");
     } finally {
+      streamActiveRef.current = false;
       stopTypingTimer();
       setStreaming(false);
     }
@@ -461,13 +510,13 @@ export function ChatPanel({
   function reset() {
     if (user) {
       onActiveChatChange?.(null);
-      setMessages([GREETING]);
+      setMessages([pickGreeting()]);
       setStatus(null);
     } else {
       if (!confirm("Clear chat + status with SASA?")) return;
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(STATUS_KEY);
-      setMessages([GREETING]);
+      setMessages([pickGreeting()]);
       setStatus(null);
     }
   }
@@ -486,9 +535,29 @@ export function ChatPanel({
         </div>
         <div className="flex gap-2 items-center">
           <SoundControls />
-          <span className="hidden md:inline sasa-subheading-sm italic">
-            fill out your daily log here! →
-          </span>
+          <select
+            value={model}
+            onChange={(e) => { sfxClick(); setModel(e.target.value); }}
+            title="Pick an AI model for SASA (free tier only)"
+            className="text-[10px] sasa-mono tracking-widest bg-secondary border rounded px-1.5 py-1 max-w-[130px] md:max-w-none"
+            style={{ borderColor: "oklch(0.32 0.07 250 / 0.6)" }}
+          >
+            <optgroup label="Fast · light">
+              {SASA_MODELS.filter((m) => m.tier === "fast").map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Balanced">
+              {SASA_MODELS.filter((m) => m.tier === "balanced").map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Deep · slower">
+              {SASA_MODELS.filter((m) => m.tier === "deep").map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </optgroup>
+          </select>
           <Button size="sm" variant="outline" onClick={() => { sfxClick(); setLogOpen(true); }}>
             <BookOpenCheck size={14} className="mr-1" /> Log
           </Button>

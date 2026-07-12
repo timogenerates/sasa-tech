@@ -22,7 +22,8 @@ function ensureCtx(): AudioContext | null {
       if (!Ctor) return null;
       ctx = new Ctor();
       masterSfx = ctx.createGain();
-      masterSfx.gain.value = 0.12;
+      // Louder overall — user asked for more prominent typing / click SFX.
+      masterSfx.gain.value = 0.42;
       masterSfx.connect(ctx.destination);
     } catch {
       return null;
@@ -75,7 +76,40 @@ export function sfxKey() {
   osc.frequency.setValueAtTime(f, t);
   osc.frequency.exponentialRampToValueAtTime(f * 0.7, t + 0.04);
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(0.18, t + 0.003);
+  g.gain.exponentialRampToValueAtTime(0.55, t + 0.003);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+  osc.connect(g).connect(masterSfx);
+  osc.start(t); osc.stop(t + 0.07);
+}
+
+/** Mechanical keyboard-ish tap for SASA typing. Slightly meatier than sfxKey. */
+export function sfxType() {
+  if (sfxMuted) return;
+  const c = ensureCtx(); if (!c || !masterSfx) return;
+  const t = c.currentTime;
+  // Noise burst
+  const bufSize = Math.floor(c.sampleRate * 0.03);
+  const buf = c.createBuffer(1, bufSize, c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+  const noise = c.createBufferSource();
+  noise.buffer = buf;
+  const bp = c.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = 1800 + Math.random() * 600;
+  bp.Q.value = 3;
+  const ng = c.createGain();
+  ng.gain.setValueAtTime(0.5, t);
+  ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+  noise.connect(bp).connect(ng).connect(masterSfx);
+  noise.start(t); noise.stop(t + 0.04);
+  // Body thunk
+  const osc = c.createOscillator();
+  const g = c.createGain();
+  osc.type = "square";
+  osc.frequency.setValueAtTime(180 + Math.random() * 40, t);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.35, t + 0.002);
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
   osc.connect(g).connect(masterSfx);
   osc.start(t); osc.stop(t + 0.06);
