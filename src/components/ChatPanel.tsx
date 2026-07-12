@@ -308,6 +308,19 @@ export function ChatPanel({
     if (!user) incGuestUsed();
     onPromptConsumed?.();
 
+    // Let SASA "read" the prompt and offer a deeper model when it looks heavy.
+    // Only prompts, never auto-downgrades. User confirms explicitly.
+    let effectiveModel = model;
+    try {
+      const s = suggestModelFor(trimmed, model);
+      if (s) {
+        const ok = window.confirm(
+          `SASA: this prompt is ${s.reason}\n\nSwitch to ${getModel(s.suggested).label} for this reply?`,
+        );
+        if (ok) effectiveModel = s.suggested;
+      }
+    } catch { /* ignore */ }
+
     // Ensure a chat row exists for logged-in users; persist the user message
     let chatId = activeChatId;
     if (user) {
@@ -342,6 +355,7 @@ export function ChatPanel({
         body: JSON.stringify({
           messages: trimmed,
           summary: chatSummary || undefined,
+          model: effectiveModel,
         }),
       });
       if (!res.ok || !res.body) {
@@ -357,6 +371,7 @@ export function ChatPanel({
       assistantTruthRef.current = "";
       revealedRef.current = 0;
       setMessages((p) => [...p, { role: "assistant", content: "" }]);
+      streamActiveRef.current = true;
       startTypingTimer();
       if (user) { refreshProfile().catch(() => {}); }
 
@@ -386,7 +401,10 @@ export function ChatPanel({
         }
       }
 
-      flushTyping();
+      // Upstream is done; let the typing illusion catch up before finalising.
+      streamActiveRef.current = false;
+      await awaitRevealDone();
+      stopTypingTimer();
       const assistant = assistantTruthRef.current;
       const latest = extractLatestStatus(assistant);
       if (latest) setStatus(latest);
