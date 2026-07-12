@@ -535,9 +535,29 @@ export function ChatPanel({
         </div>
         <div className="flex gap-2 items-center">
           <SoundControls />
-          <span className="hidden md:inline sasa-subheading-sm italic">
-            fill out your daily log here! →
-          </span>
+          <select
+            value={model}
+            onChange={(e) => { sfxClick(); setModel(e.target.value); }}
+            title="Pick an AI model for SASA (free tier only)"
+            className="text-[10px] sasa-mono tracking-widest bg-secondary border rounded px-1.5 py-1 max-w-[130px] md:max-w-none"
+            style={{ borderColor: "oklch(0.32 0.07 250 / 0.6)" }}
+          >
+            <optgroup label="Fast · light">
+              {SASA_MODELS.filter((m) => m.tier === "fast").map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Balanced">
+              {SASA_MODELS.filter((m) => m.tier === "balanced").map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Deep · slower">
+              {SASA_MODELS.filter((m) => m.tier === "deep").map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </optgroup>
+          </select>
           <Button size="sm" variant="outline" onClick={() => { sfxClick(); setLogOpen(true); }}>
             <BookOpenCheck size={14} className="mr-1" /> Log
           </Button>
