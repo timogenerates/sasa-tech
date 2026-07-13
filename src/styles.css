@@ -295,4 +295,23 @@
     border-radius: 6px;
     box-shadow: 0 0 6px var(--sasa-cyan);
   }
+
+  /* Chip row above the composer — SASA's suggested prompts. */
+  .sasa-chip {
+    font-family: 'Chakra Petch', system-ui, sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    padding: 0.3rem 0.65rem;
+    border-radius: 9999px;
+    border: 1px solid oklch(0.82 0.18 210 / 0.45);
+    background: oklch(0.18 0.04 265 / 0.75);
+    color: oklch(0.9 0.03 235);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+    white-space: nowrap;
+  }
+  .sasa-chip:hover {
+    background: oklch(0.24 0.06 265 / 0.85);
+    box-shadow: 0 0 8px oklch(0.82 0.18 210 / 0.4);
+    transform: translateY(-1px);
+  }
 }
