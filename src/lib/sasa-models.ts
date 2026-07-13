@@ -30,7 +30,9 @@ export const SASA_MODELS: SasaModel[] = [
   { id: "openai/gpt-5.5", label: "GPT-5.5", vendor: "OpenAI", tier: "deep", blurb: "Most capable OpenAI available.", costWeight: 5 },
 ];
 
-export const SASA_DEFAULT_MODEL = "google/gemini-3-flash-preview";
+// Per user directive: SASA defaults to Gemini 3.1 Pro for higher-caliber
+// reasoning. Users can still pick lighter/faster models from the dropdown.
+export const SASA_DEFAULT_MODEL = "google/gemini-3.1-pro-preview";
 
 export const SASA_ALLOWED_MODEL_IDS = new Set(SASA_MODELS.map((m) => m.id));
 

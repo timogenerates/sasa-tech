@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Crown, ExternalLink, Copy, AlertTriangle } from "lucide-react";
+import { Crown, ExternalLink, Copy, AlertTriangle, Star } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/upgrade")({
@@ -50,19 +50,52 @@ function UpgradePage() {
           </div>
         )}
 
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 gap-4">
           {[
-            { name: "Free", price: "$0", perks: ["20 prompts / day", "Daily reset", "Chat history", "Status Hub (view only)"], current: profile?.tier === "free" || !profile },
-            { name: "Monthly", price: "$18 / mo", perks: ["Unlimited prompts", "Status Hub trends & charts", "Character Design (3D avatar)", "Synchronization (Notion / GDrive / GitHub)", "Priority responses"], current: profile?.tier === "monthly" },
-            { name: "Prompts Pack", price: "$3 / 120 prompts", perks: ["120 prompts, no expiry", "No daily reset cap", "Status Hub trends & charts", "Synchronization access", "Top up any time"], current: profile?.tier === "prompts" },
+            {
+              name: "Free",
+              price: "$0",
+              badge: null,
+              perks: [
+                "20 prompts / day",
+                "Daily reset",
+                "Full chat history",
+                "Status Hub (view only)",
+                "Image + voice sketches (uses your daily quota)",
+              ],
+              current: profile?.tier === "free" || !profile,
+            },
+            {
+              name: "Early Adopter",
+              price: "$24 / mo",
+              badge: "MOST VALUE",
+              perks: [
+                "Unlimited prompts, no daily cap",
+                "Status Hub trends & charts",
+                "Character Design (3D avatar & outfits)",
+                "Synchronization (Notion / GDrive / GitHub)",
+                "Priority responses (deep models by default)",
+                "Higher upload limits (150MB / file)",
+                "Founding-member badge — locked-in price forever",
+              ],
+              // Legacy `prompts` tier is auto-migrated to `monthly` — treat
+              // both as Early Adopter so grandfathered users don't lose it.
+              current: profile?.tier === "monthly" || profile?.tier === "prompts",
+            },
           ].map((t) => (
-            <div key={t.name} className={`sasa-panel rounded-md p-4 ${t.current ? "ring-2 ring-primary" : ""}`}>
+            <div key={t.name} className={`sasa-panel rounded-md p-5 relative ${t.current ? "ring-2 ring-primary" : ""}`}>
+              {t.badge && (
+                <div className="absolute -top-2 right-3 px-2 py-0.5 rounded-full text-[9px] tracking-widest sasa-mono flex items-center gap-1"
+                  style={{ background: "linear-gradient(135deg, var(--sasa-cyan), var(--sasa-violet))", color: "oklch(0.12 0.04 265)" }}>
+                  <Star size={10} /> {t.badge}
+                </div>
+              )}
               <div className="sasa-mono text-[10px] uppercase tracking-widest text-muted-foreground">{t.name}</div>
-              <div className="sasa-display text-2xl mt-1 sasa-text-glow">{t.price}</div>
+              <div className="sasa-display text-3xl mt-1 sasa-text-glow">{t.price}</div>
               <ul className="mt-3 space-y-1.5 text-xs">
-                {t.perks.map((p) => <li key={p} className="flex gap-2"><span className="text-primary">▸</span>{p}</li>)}
+                {t.perks.map((p) => <li key={p} className="flex gap-2"><span className="text-primary shrink-0">▸</span><span>{p}</span></li>)}
               </ul>
-              {t.current && <div className="mt-3 sasa-mono text-[10px] uppercase text-primary">Active</div>}
+              {t.current && <div className="mt-4 sasa-mono text-[10px] uppercase text-primary">Active</div>}
             </div>
           ))}
         </div>

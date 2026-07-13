@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { AnimatePresence, motion } from "framer-motion";
-import { Send, BookOpenCheck, RefreshCw, Mic, MicOff, Paperclip, X, ImagePlus, Volume2 } from "lucide-react";
+import { Send, BookOpenCheck, RefreshCw, Mic, MicOff, Paperclip, X, ImagePlus, Volume2, User as UserIcon, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -13,14 +13,17 @@ import type { SasaStatus } from "@/lib/sasa-prompt";
 import { useAuth } from "@/hooks/useAuth";
 import { getGuestUsed, incGuestUsed } from "./PromptLimitHud";
 import { addMessage, createChat, getChatMessages, getChatSummary, updateSummaryIfNeeded } from "@/lib/chats.functions";
-import { saveStatusSnapshot } from "@/lib/status.functions";
+import { saveStatusSnapshot, listStatusSnapshots, type SnapshotRow } from "@/lib/status.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { SoundControls } from "./SoundControls";
 import { sfxClick, sfxType } from "@/lib/sasa-sfx";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { SASA_MODELS, SASA_DEFAULT_MODEL, getModel, suggestModelFor } from "@/lib/sasa-models";
+import { parseAction, runAction } from "@/lib/sasa-actions";
+import { buildSuggestions } from "@/lib/sasa-suggestions";
 
 const GUEST_LIMIT = 7;
+const TYPING_SPEED_LS_KEY = "sasa:typing-cps:v1";
 
 // Image upload size caps per tier (bytes)
 const UPLOAD_LIMITS: Record<"guest" | "free" | "monthly" | "prompts", number> = {
@@ -30,9 +33,10 @@ const UPLOAD_LIMITS: Record<"guest" | "free" | "monthly" | "prompts", number> = 
   prompts: 150 * 1024 * 1024,
 };
 
-// Deliberate typing reveal speed (characters / second). Slow enough that the
-// illusion is visible even when the upstream stream finishes fast.
-const TYPING_CPS = 42;
+// Default deliberate typing reveal speed (characters / second). Slow enough
+// that the illusion is visible even when the upstream stream finishes fast.
+// Runtime-adjustable via the /typing command or SASA action parser.
+const DEFAULT_TYPING_CPS = 42;
 
 const MODEL_LS_KEY = "sasa:model:v1";
 
@@ -70,6 +74,9 @@ type ChatPanelProps = {
   onActiveChatChange?: (id: string | null) => void;
   onChatsMutated?: () => void;
   onStatusSaved?: () => void;
+  onNavigate?: (to: string) => void;
+  onOpenStatusHub?: () => void;
+  onOpenSidebar?: () => void;
 };
 
 export function ChatPanel({
@@ -79,6 +86,9 @@ export function ChatPanel({
   onActiveChatChange,
   onChatsMutated,
   onStatusSaved,
+  onNavigate,
+  onOpenStatusHub,
+  onOpenSidebar,
 }: ChatPanelProps = {}) {
   const { user, profile, refreshProfile } = useAuth();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -92,6 +102,15 @@ export function ChatPanel({
     if (typeof window === "undefined") return SASA_DEFAULT_MODEL;
     return localStorage.getItem(MODEL_LS_KEY) ?? SASA_DEFAULT_MODEL;
   });
+  const [typingCps, setTypingCps] = useState<number>(() => {
+    if (typeof window === "undefined") return DEFAULT_TYPING_CPS;
+    const s = localStorage.getItem(TYPING_SPEED_LS_KEY);
+    const n = s ? parseInt(s, 10) : DEFAULT_TYPING_CPS;
+    return Number.isFinite(n) && n >= 8 && n <= 800 ? n : DEFAULT_TYPING_CPS;
+  });
+  const typingCpsRef = useRef(typingCps);
+  useEffect(() => { typingCpsRef.current = typingCps; try { localStorage.setItem(TYPING_SPEED_LS_KEY, String(typingCps)); } catch { /* ignore */ } }, [typingCps]);
+  const [snapshots, setSnapshots] = useState<SnapshotRow[] | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   // Rolling summary of the current chat (older-than-last-20 messages).
@@ -110,6 +129,19 @@ export function ChatPanel({
   useEffect(() => {
     try { localStorage.setItem(MODEL_LS_KEY, model); } catch { /* ignore */ }
   }, [model]);
+
+  // Passive background scan of user's status snapshots — powers personalised
+  // suggestion chips. Refreshes when the user changes or activeChatId shifts.
+  useEffect(() => {
+    if (!user) { setSnapshots(null); return; }
+    let cancelled = false;
+    listStatusSnapshots()
+      .then((rows) => { if (!cancelled) setSnapshots(rows); })
+      .catch(() => { /* silent — chips just fall back to generic */ });
+    return () => { cancelled = true; };
+  }, [user, activeChatId]);
+
+  const suggestions = useMemo(() => buildSuggestions(snapshots, !user), [snapshots, user]);
 
   const voice = useVoiceInput((finalText) => {
     setInput((prev) => (prev ? prev + " " : "") + finalText);
@@ -189,7 +221,7 @@ export function ChatPanel({
   function startTypingTimer() {
     if (typingTimerRef.current) return;
     const tickMs = 30;
-    const step = Math.max(1, Math.round((TYPING_CPS * tickMs) / 1000));
+    const step = Math.max(1, Math.round((typingCpsRef.current * tickMs) / 1000));
     let blipCounter = 0;
     typingTimerRef.current = setInterval(() => {
       const truth = assistantTruthRef.current;
@@ -255,6 +287,27 @@ export function ChatPanel({
     const trimmed = text.trim();
     if ((!trimmed && !attached) || streaming) return;
     sfxClick();
+
+    // Client-side action intents FIRST — takes SASA into settings, opens
+    // the status hub, mutes sound, etc. without spending a prompt credit.
+    if (trimmed && !attached) {
+      const action = parseAction(trimmed);
+      if (action) {
+        const echo = runAction(action, {
+          navigate: (to) => onNavigate?.(to),
+          openStatusHub: () => onOpenStatusHub?.(),
+          openSidebar: () => onOpenSidebar?.(),
+          setTypingSpeed: (cps) => setTypingCps(cps),
+        });
+        setInput("");
+        setMessages((prev) => [
+          ...prev,
+          { role: "user", content: trimmed },
+          { role: "assistant", content: echo },
+        ]);
+        return;
+      }
+    }
 
     // Slash-command routing to /api/media (image + voice generation).
     const mediaMatch = trimmed.match(/^\/(image|voice)\s+([\s\S]+)$/i);
@@ -573,7 +626,13 @@ export function ChatPanel({
         )}
         <AnimatePresence initial={false}>
           {messages.map((m, i) => (
-            <MessageBubble key={i} role={m.role} content={m.content} />
+            <MessageBubble
+              key={i}
+              role={m.role}
+              content={m.content}
+              userAvatarUrl={profile?.avatar_url ?? null}
+              userDisplayName={profile?.display_name ?? user?.email ?? null}
+            />
           ))}
         </AnimatePresence>
         {streaming && messages[messages.length - 1]?.role === "user" && (
@@ -584,8 +643,24 @@ export function ChatPanel({
         )}
       </div>
 
+      <div className="border-t shrink-0" style={{ borderColor: "oklch(0.32 0.07 250 / 0.6)" }}>
+      {suggestions.length > 0 && !streaming && (
+        <div className="px-3 pt-2 pb-1 flex gap-1.5 overflow-x-auto sasa-scroll-neon">
+          {suggestions.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className="sasa-chip shrink-0"
+              onClick={() => { sfxClick(); setInput(s); }}
+              title="Insert this into your prompt"
+            >
+              <Sparkles size={10} className="inline mr-1 opacity-70" />{s}
+            </button>
+          ))}
+        </div>
+      )}
       <form
-        className="border-t p-3 flex gap-2"
+        className="p-2 md:p-3 flex gap-2"
         style={{ borderColor: "oklch(0.32 0.07 250 / 0.6)" }}
         onSubmit={(e) => { e.preventDefault(); send(input); }}
       >
@@ -618,7 +693,7 @@ export function ChatPanel({
               }
             }}
             placeholder={voice.listening ? "Listening…" : "Tell SASA anything…"}
-            rows={2}
+            rows={1}
             className="resize-none text-sm"
           />
         </div>
@@ -629,7 +704,7 @@ export function ChatPanel({
           hidden
           onChange={onPickFile}
         />
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5">
           <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0"
             title="Attach file" onClick={() => { sfxClick(); fileRef.current?.click(); }}>
             <Paperclip size={14} />
@@ -662,13 +737,47 @@ export function ChatPanel({
           </Button>
         </div>
       </form>
+      </div>
 
       <DailyLogForm open={logOpen} onClose={() => setLogOpen(false)} onSubmit={submitLog} />
     </div>
   );
 }
 
-function MessageBubble({ role, content }: { role: "user" | "assistant"; content: string }) {
+function UserAvatarChip({ url, name }: { url: string | null; name: string | null }) {
+  const initial = (name?.trim()?.[0] ?? "?").toUpperCase();
+  return (
+    <div
+      className="w-9 h-9 rounded-full shrink-0 grid place-items-center overflow-hidden"
+      style={{
+        border: "2px solid oklch(0.68 0.22 300 / 0.7)",
+        boxShadow: "0 0 10px oklch(0.68 0.22 300 / 0.35)",
+        background: "oklch(0.22 0.05 265)",
+      }}
+      title={name ?? "You"}
+    >
+      {url ? (
+        <img src={url} alt={name ?? "You"} className="w-full h-full object-cover" />
+      ) : name ? (
+        <span className="sasa-mono text-sm text-primary">{initial}</span>
+      ) : (
+        <UserIcon size={16} className="opacity-70" />
+      )}
+    </div>
+  );
+}
+
+function MessageBubble({
+  role,
+  content,
+  userAvatarUrl,
+  userDisplayName,
+}: {
+  role: "user" | "assistant";
+  content: string;
+  userAvatarUrl: string | null;
+  userDisplayName: string | null;
+}) {
   const isUser = role === "user";
   const segs = isUser ? [{ kind: "text" as const, text: content }] : parseSasaMessage(content);
   const renderText = (text: string, key: number) => {
@@ -694,12 +803,17 @@ function MessageBubble({ role, content }: { role: "user" | "assistant"; content:
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+      className={`flex gap-2 ${isUser ? "flex-row-reverse" : "flex-row"}`}
     >
-      <div className={`max-w-[88%] ${isUser ? "" : "w-full"}`}>
-        {!isUser && (
-          <div className="text-[10px] tracking-widest text-muted-foreground mb-1">⚡ SASA</div>
-        )}
+      {isUser ? (
+        <UserAvatarChip url={userAvatarUrl} name={userDisplayName} />
+      ) : (
+        <SasaAvatar size={36} />
+      )}
+      <div className={`min-w-0 ${isUser ? "max-w-[82%]" : "flex-1"}`}>
+        <div className="text-[10px] tracking-widest text-muted-foreground mb-1">
+          {isUser ? (userDisplayName ?? "You") : "⚡ SASA"}
+        </div>
         <div
           className={isUser ? "rounded-lg px-3 py-2 text-sm" : "text-sm leading-relaxed"}
           style={
