@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as UpgradeRouteImport } from './routes/upgrade'
 import { Route as SyncRouteImport } from './routes/sync'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as CreatorDashboardRouteImport } from './routes/creator-dashboard'
 import { Route as IndexRouteImport } from './routes/index'
@@ -31,6 +32,11 @@ const SyncRoute = SyncRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/creator-dashboard': typeof CreatorDashboardRoute
   '/profile': typeof ProfileRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/sync': typeof SyncRoute
   '/upgrade': typeof UpgradeRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/creator-dashboard': typeof CreatorDashboardRoute
   '/profile': typeof ProfileRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/sync': typeof SyncRoute
   '/upgrade': typeof UpgradeRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/creator-dashboard': typeof CreatorDashboardRoute
   '/profile': typeof ProfileRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/sync': typeof SyncRoute
   '/upgrade': typeof UpgradeRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/creator-dashboard'
     | '/profile'
+    | '/reset-password'
     | '/settings'
     | '/sync'
     | '/upgrade'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/creator-dashboard'
     | '/profile'
+    | '/reset-password'
     | '/settings'
     | '/sync'
     | '/upgrade'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/creator-dashboard'
     | '/profile'
+    | '/reset-password'
     | '/settings'
     | '/sync'
     | '/upgrade'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CreatorDashboardRoute: typeof CreatorDashboardRoute
   ProfileRoute: typeof ProfileRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
   SyncRoute: typeof SyncRoute
   UpgradeRoute: typeof UpgradeRoute
@@ -155,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -199,6 +219,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CreatorDashboardRoute: CreatorDashboardRoute,
   ProfileRoute: ProfileRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
   SyncRoute: SyncRoute,
   UpgradeRoute: UpgradeRoute,
