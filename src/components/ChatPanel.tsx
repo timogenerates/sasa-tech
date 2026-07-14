@@ -665,12 +665,11 @@ export function ChatPanel({
         </div>
       )}
       <form
-        className="p-2 md:p-3 flex gap-2"
+        className="p-2 md:p-3 flex flex-col gap-2"
         style={{ borderColor: "oklch(0.32 0.07 250 / 0.6)" }}
         onSubmit={(e) => { e.preventDefault(); send(input); }}
       >
-        <div className="flex-1 flex flex-col gap-2">
-          {attached && (
+        {attached && (
             <div className="flex items-center gap-2 px-2 py-1 rounded border text-xs"
               style={{ borderColor: "oklch(0.32 0.07 250 / 0.5)" }}>
               {attached.dataUrl ? (
@@ -701,7 +700,6 @@ export function ChatPanel({
             rows={1}
             className="resize-none text-sm"
           />
-        </div>
         <input
           ref={fileRef}
           type="file"
@@ -709,7 +707,7 @@ export function ChatPanel({
           hidden
           onChange={onPickFile}
         />
-        <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-1.5">
           <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0"
             title="Attach file" onClick={() => { sfxClick(); fileRef.current?.click(); }}>
             <Paperclip size={14} />
@@ -732,6 +730,7 @@ export function ChatPanel({
               {voice.listening ? <MicOff size={14} /> : <Mic size={14} />}
             </Button>
           )}
+          <div className="flex-1" />
           <Button
             type="submit"
             disabled={streaming || (!input.trim() && !attached)}
