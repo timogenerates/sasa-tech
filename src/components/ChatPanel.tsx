@@ -827,11 +827,26 @@ function MessageBubble({
               : undefined
           }
         >
-          {segs.map((s, i) =>
-            s.kind === "status" ? (
-              <StatusWindow key={i} data={s.status} />
-            ) : renderText(s.text, i),
-          )}
+          {segs.map((s, i) => {
+            if (s.kind === "status") return <StatusWindow key={i} data={s.status} />;
+            if (s.kind === "pending") {
+              return (
+                <div
+                  key={i}
+                  className="my-2 inline-flex items-center gap-2 px-3 py-1.5 rounded border sasa-mono text-[10px] tracking-[0.25em]"
+                  style={{
+                    borderColor: "var(--sasa-cyan)",
+                    color: "var(--sasa-cyan)",
+                    boxShadow: "0 0 12px oklch(0.82 0.18 210 / 0.35)",
+                  }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
+                  {s.label}
+                </div>
+              );
+            }
+            return renderText(s.text, i);
+          })}
         </div>
       </div>
     </motion.div>
