@@ -462,6 +462,19 @@ export function ChatPanel({
       const latest = extractLatestStatus(assistant);
       if (latest) setStatus(latest);
 
+      // Auto-fulfil media commands SASA emitted as text. If she wrote
+      // `/image <prompt>` (or /voice) instead of calling the tool, run it
+      // for the user so they don't just see the command echoed back.
+      const mediaOut = assistant.match(/(^|\n)\s*\/(image|voice)\s+([^\n]+)/i);
+      if (mediaOut && user) {
+        const kind = mediaOut[2].toLowerCase() === "voice" ? "audio" : "image";
+        const p = mediaOut[3].trim().replace(/[`*_]/g, "").slice(0, 400);
+        if (p) {
+          // fire-and-forget — generateMedia handles its own errors + UI
+          generateMedia(kind, p);
+        }
+      }
+
       if (user && chatId && assistant.trim()) {
         try {
           await addMessage({ data: { chatId, role: "assistant", content: assistant } });
