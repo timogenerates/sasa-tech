@@ -576,15 +576,20 @@ export function ChatPanel({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "oklch(0.32 0.07 250 / 0.6)" }}>
-        <div className="flex items-center gap-3">
-          <SasaAvatar size={48} speaking={streaming} />
-          <div>
-            <div className="text-sm font-bold tracking-widest sasa-text-glow">SASA</div>
-            <div className="sasa-subheading-sm">
-              Self-Analysis Systems AI · {streaming ? "analysing…" : "online"}
-            </div>
-          </div>
+      <div className="flex items-center justify-between px-4 py-2 border-b" style={{ borderColor: "oklch(0.32 0.07 250 / 0.6)" }}>
+        <div className="flex items-center gap-2">
+          <span
+            className="w-1.5 h-1.5 rounded-full"
+            style={{
+              background: streaming ? "var(--sasa-violet)" : "oklch(0.78 0.2 145)",
+              boxShadow: streaming
+                ? "0 0 8px var(--sasa-violet)"
+                : "0 0 8px oklch(0.78 0.2 145)",
+            }}
+          />
+          <span className="sasa-mono text-[10px] tracking-[0.3em] uppercase opacity-80">
+            {streaming ? "analysing…" : "online"}
+          </span>
         </div>
         <div className="flex gap-2 items-center">
           <SoundControls />
