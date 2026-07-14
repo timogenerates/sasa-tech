@@ -120,7 +120,7 @@ export function LifetimeStatsPanel({ refreshKey = 0, onRequestAuth }: Props) {
     return (
       <div className="sasa-panel sasa-frame-corner rounded-md h-full p-5 flex flex-col items-center justify-center text-center gap-3">
         <Lock size={22} className="opacity-70" />
-        <div className="sasa-display tracking-widest text-sm sasa-text-glow">LIFETIME STATS</div>
+        <div className="sasa-display tracking-widest text-sm sasa-text-glow">RELEVANT STATS</div>
         <p className="sasa-subheading-sm max-w-[240px]">
           Sign up to unlock your full stat archive, master~ Every category SASA has ever read on you lives here.
         </p>
@@ -143,7 +143,7 @@ export function LifetimeStatsPanel({ refreshKey = 0, onRequestAuth }: Props) {
     <div className="sasa-panel sasa-frame-corner rounded-md h-full flex flex-col overflow-hidden">
       <div className="px-4 py-3 border-b" style={{ borderColor: "oklch(0.32 0.07 250 / 0.6)" }}>
         <div className="flex items-center justify-between mb-2">
-          <div className="sasa-display text-xs tracking-[0.3em] sasa-text-glow">⚡ LIFETIME STATS</div>
+          <div className="sasa-display text-xs tracking-[0.3em] sasa-text-glow">⚡ RELEVANT STATS</div>
           {status && (
             <span
               className="px-2 py-0.5 text-[9px] tracking-widest rounded border"

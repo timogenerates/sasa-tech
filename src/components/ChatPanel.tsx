@@ -462,6 +462,19 @@ export function ChatPanel({
       const latest = extractLatestStatus(assistant);
       if (latest) setStatus(latest);
 
+      // Auto-fulfil media commands SASA emitted as text. If she wrote
+      // `/image <prompt>` (or /voice) instead of calling the tool, run it
+      // for the user so they don't just see the command echoed back.
+      const mediaOut = assistant.match(/(^|\n)\s*\/(image|voice)\s+([^\n]+)/i);
+      if (mediaOut && user) {
+        const kind = mediaOut[2].toLowerCase() === "voice" ? "audio" : "image";
+        const p = mediaOut[3].trim().replace(/[`*_]/g, "").slice(0, 400);
+        if (p) {
+          // fire-and-forget — generateMedia handles its own errors + UI
+          generateMedia(kind, p);
+        }
+      }
+
       if (user && chatId && assistant.trim()) {
         try {
           await addMessage({ data: { chatId, role: "assistant", content: assistant } });
@@ -576,15 +589,20 @@ export function ChatPanel({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "oklch(0.32 0.07 250 / 0.6)" }}>
-        <div className="flex items-center gap-3">
-          <SasaAvatar size={48} speaking={streaming} />
-          <div>
-            <div className="text-sm font-bold tracking-widest sasa-text-glow">SASA</div>
-            <div className="sasa-subheading-sm">
-              Self-Analysis Systems AI · {streaming ? "analysing…" : "online"}
-            </div>
-          </div>
+      <div className="flex items-center justify-between px-4 py-2 border-b" style={{ borderColor: "oklch(0.32 0.07 250 / 0.6)" }}>
+        <div className="flex items-center gap-2">
+          <span
+            className="w-1.5 h-1.5 rounded-full"
+            style={{
+              background: streaming ? "var(--sasa-violet)" : "oklch(0.78 0.2 145)",
+              boxShadow: streaming
+                ? "0 0 8px var(--sasa-violet)"
+                : "0 0 8px oklch(0.78 0.2 145)",
+            }}
+          />
+          <span className="sasa-mono text-[10px] tracking-[0.3em] uppercase opacity-80">
+            {streaming ? "analysing…" : "online"}
+          </span>
         </div>
         <div className="flex gap-2 items-center">
           <SoundControls />
@@ -660,12 +678,11 @@ export function ChatPanel({
         </div>
       )}
       <form
-        className="p-2 md:p-3 flex gap-2"
+        className="p-2 md:p-3 flex flex-col gap-2"
         style={{ borderColor: "oklch(0.32 0.07 250 / 0.6)" }}
         onSubmit={(e) => { e.preventDefault(); send(input); }}
       >
-        <div className="flex-1 flex flex-col gap-2">
-          {attached && (
+        {attached && (
             <div className="flex items-center gap-2 px-2 py-1 rounded border text-xs"
               style={{ borderColor: "oklch(0.32 0.07 250 / 0.5)" }}>
               {attached.dataUrl ? (
@@ -696,7 +713,6 @@ export function ChatPanel({
             rows={1}
             className="resize-none text-sm"
           />
-        </div>
         <input
           ref={fileRef}
           type="file"
@@ -704,7 +720,7 @@ export function ChatPanel({
           hidden
           onChange={onPickFile}
         />
-        <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-1.5">
           <Button type="button" size="sm" variant="ghost" className="h-9 w-9 p-0"
             title="Attach file" onClick={() => { sfxClick(); fileRef.current?.click(); }}>
             <Paperclip size={14} />
@@ -727,6 +743,7 @@ export function ChatPanel({
               {voice.listening ? <MicOff size={14} /> : <Mic size={14} />}
             </Button>
           )}
+          <div className="flex-1" />
           <Button
             type="submit"
             disabled={streaming || (!input.trim() && !attached)}
@@ -822,11 +839,26 @@ function MessageBubble({
               : undefined
           }
         >
-          {segs.map((s, i) =>
-            s.kind === "status" ? (
-              <StatusWindow key={i} data={s.status} />
-            ) : renderText(s.text, i),
-          )}
+          {segs.map((s, i) => {
+            if (s.kind === "status") return <StatusWindow key={i} data={s.status} />;
+            if (s.kind === "pending") {
+              return (
+                <div
+                  key={i}
+                  className="my-2 inline-flex items-center gap-2 px-3 py-1.5 rounded border sasa-mono text-[10px] tracking-[0.25em]"
+                  style={{
+                    borderColor: "var(--sasa-cyan)",
+                    color: "var(--sasa-cyan)",
+                    boxShadow: "0 0 12px oklch(0.82 0.18 210 / 0.35)",
+                  }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
+                  {s.label}
+                </div>
+              );
+            }
+            return renderText(s.text, i);
+          })}
         </div>
       </div>
     </motion.div>
