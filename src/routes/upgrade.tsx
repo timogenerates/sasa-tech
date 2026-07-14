@@ -122,9 +122,9 @@ function UpgradePage() {
           size="lg"
           className="w-full"
           style={{ background: "linear-gradient(135deg, var(--sasa-cyan), var(--sasa-violet))", color: "oklch(0.12 0.04 265)" }}
-          onClick={() => window.open("https://www.patreon.com/sasaupgrades", "_blank", "noopener")}
+          onClick={() => window.open("https://www.patreon.com/sasatechnology", "_blank", "noopener")}
         >
-          Open Patreon · sasaupgrades <ExternalLink size={16} className="ml-2" />
+          Open Patreon · sasatechnology <ExternalLink size={16} className="ml-2" />
         </Button>
       </div>
     </div>
